@@ -13,6 +13,13 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -289,6 +296,10 @@ private fun NexTextApp(
             NavHost(
                 navController = navController,
                 startDestination = Routes.INBOX,
+                enterTransition = { fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) },
+                exitTransition = { fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) },
+                popExitTransition = { fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) },
                 modifier = Modifier
                     .fillMaxSize()
                     .haze(state = hazeState)
@@ -314,7 +325,7 @@ private fun NexTextApp(
                     onOpenSearch = { navController.navigate(Routes.SEARCH) },
                     onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                     onOpenCompose = { navController.navigate(Routes.composeRoute()) },
-                    onSyncClick = viewModel::syncSms,
+                    onSyncClick = { viewModel.syncSms(showFeedback = true) },
                     onToggleUnreadOnly = viewModel::toggleUnreadOnly,
                     onMarkAllAsRead = viewModel::markAllAsRead,
                     onRequestDefaultSms = {
@@ -468,7 +479,19 @@ private fun NexTextApp(
                 arguments = listOf(
                     navArgument("address") { type = NavType.StringType; defaultValue = "" },
                     navArgument("body") { type = NavType.StringType; defaultValue = "" }
-                )
+                ),
+                enterTransition = {
+                    slideInVertically(
+                        animationSpec = tween(260, easing = FastOutSlowInEasing),
+                        initialOffsetY = { it / 6 }
+                    ) + fadeIn(tween(240, easing = FastOutSlowInEasing))
+                },
+                popExitTransition = {
+                    slideOutVertically(
+                        animationSpec = tween(220, easing = FastOutSlowInEasing),
+                        targetOffsetY = { it / 6 }
+                    ) + fadeOut(tween(200, easing = FastOutSlowInEasing))
+                }
             ) { entry ->
                 val initAddr = entry.arguments?.getString("address").orEmpty()
                 val initBody = entry.arguments?.getString("body").orEmpty()
@@ -549,7 +572,12 @@ private fun NexTextApp(
             }
         }
 
-        if (!prefs.useMaterial3Design && currentRoute in listOf(Routes.INBOX, Routes.FINANCE, Routes.SMART_HUB)) {
+        AnimatedVisibility(
+            visible = !prefs.useMaterial3Design && currentRoute in listOf(Routes.INBOX, Routes.FINANCE, Routes.SMART_HUB),
+            enter = fadeIn(tween(220, easing = FastOutSlowInEasing)) + slideInVertically(tween(220, easing = FastOutSlowInEasing)) { it / 2 },
+            exit = fadeOut(tween(160, easing = FastOutSlowInEasing)) + slideOutVertically(tween(160, easing = FastOutSlowInEasing)) { it / 2 },
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
             val selectedTab = when (currentRoute) {
                 Routes.INBOX -> 0
                 Routes.SMART_HUB -> 1
@@ -576,8 +604,7 @@ private fun NexTextApp(
                         }
                     }
                 },
-                onComposeClick = { navController.navigate(Routes.composeRoute()) },
-                modifier = Modifier.align(Alignment.BottomCenter)
+                onComposeClick = { navController.navigate(Routes.composeRoute()) }
             )
         }
         }

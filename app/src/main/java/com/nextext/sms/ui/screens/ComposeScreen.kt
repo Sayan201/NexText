@@ -63,6 +63,9 @@ fun ComposeScreen(
     var showSimMenu by remember { mutableStateOf(false) }
 
     LaunchedEffect(recipient) {
+        if (recipient.isEmpty()) {
+            kotlinx.coroutines.delay(160)
+        }
         onSearchContacts(recipient)
     }
 

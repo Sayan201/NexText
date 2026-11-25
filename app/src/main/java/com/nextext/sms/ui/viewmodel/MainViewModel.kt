@@ -188,20 +188,28 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
             _selectedSubId.value = sims.first().subId
         }
         if (_hasPermissions.value) {
-            syncSms()
+            syncSms(showFeedback = false)
         }
     }
 
-    fun syncSms() {
+    fun syncSms(showFeedback: Boolean = false) {
         if (_isSyncing.value) return
         viewModelScope.launch {
             _isSyncing.value = true
             runCatching { repo.syncSystemSms() }
                 .onSuccess { count ->
-                    if (count > 0) _snackbarMessage.value = "Synced $count new messages"
+                    if (showFeedback) {
+                        _snackbarMessage.value = if (count > 0) {
+                            "Synced $count new messages"
+                        } else {
+                            "Messages are up to date"
+                        }
+                    }
                 }
                 .onFailure { err ->
-                    _snackbarMessage.value = "Sync failed: ${err.localizedMessage}"
+                    if (showFeedback) {
+                        _snackbarMessage.value = "Sync failed: ${err.localizedMessage}"
+                    }
                 }
             _isSyncing.value = false
         }

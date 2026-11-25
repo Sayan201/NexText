@@ -212,7 +212,7 @@ fun LiquidGlassNavBottomBar(
     val isSwitching = isDragging || abs(animatedIndex - selectedTab.toFloat()) > 0.04f
 
     val lensScaleX by animateFloatAsState(
-        targetValue = if (isSwitching) 1.12f else 1.0f,
+        targetValue = if (isSwitching) 1.22f else 1.0f,
         animationSpec = spring(
             dampingRatio = 0.65f,
             stiffness = Spring.StiffnessMedium
@@ -220,7 +220,7 @@ fun LiquidGlassNavBottomBar(
         label = "crystalScaleX"
     )
     val lensScaleY by animateFloatAsState(
-        targetValue = if (isSwitching) 1.26f else 1.0f,
+        targetValue = if (isSwitching) 1.44f else 1.0f,
         animationSpec = spring(
             dampingRatio = 0.65f,
             stiffness = Spring.StiffnessMedium

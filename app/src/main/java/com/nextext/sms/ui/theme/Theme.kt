@@ -69,7 +69,7 @@ private fun pitchBlackColors(accent: PitchBlackAccent) = darkColorScheme(
 @Composable
 fun NexTextTheme(
     themeMode: ThemeMode = ThemeMode.PITCH_BLACK,
-    pitchBlackAccent: PitchBlackAccent = PitchBlackAccent.PURPLE,
+    pitchBlackAccent: PitchBlackAccent = PitchBlackAccent.CYAN,
     useMaterial3Design: Boolean = false,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit

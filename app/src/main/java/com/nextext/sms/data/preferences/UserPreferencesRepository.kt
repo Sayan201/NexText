@@ -36,7 +36,7 @@ enum class PitchBlackAccent(
 
 data class UserPreferences(
     val themeMode: ThemeMode = ThemeMode.PITCH_BLACK,
-    val pitchBlackAccent: PitchBlackAccent = PitchBlackAccent.PURPLE,
+    val pitchBlackAccent: PitchBlackAccent = PitchBlackAccent.CYAN,
     val useMaterial3Design: Boolean = false,
     val dynamicColor: Boolean = false,
     val autoDeleteOldOtps: Boolean = false,
@@ -64,8 +64,8 @@ class UserPreferencesRepository(private val context: Context) {
                 runCatching { ThemeMode.valueOf(it) }.getOrDefault(ThemeMode.PITCH_BLACK)
             } ?: ThemeMode.PITCH_BLACK,
             pitchBlackAccent = prefs[Keys.PITCH_BLACK_ACCENT]?.let {
-                runCatching { PitchBlackAccent.valueOf(it) }.getOrDefault(PitchBlackAccent.PURPLE)
-            } ?: PitchBlackAccent.PURPLE,
+                runCatching { PitchBlackAccent.valueOf(it) }.getOrDefault(PitchBlackAccent.CYAN)
+            } ?: PitchBlackAccent.CYAN,
             useMaterial3Design = prefs[Keys.USE_MATERIAL3] ?: false,
             dynamicColor = prefs[Keys.DYNAMIC_COLOR] ?: false,
             autoDeleteOldOtps = prefs[Keys.AUTO_DELETE_OTPS] ?: false,

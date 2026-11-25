@@ -127,6 +127,7 @@ class SmsRepository(
                 val address = cursor.getString(idxAddr)?.takeIf { it.isNotBlank() } ?: "Unknown"
                 val body = cursor.getString(idxBody) ?: ""
                 val timestamp = cursor.getLong(idxDate)
+                if (messageDao.findDuplicate(threadId, body, timestamp) != null) continue
                 val type = cursor.getInt(idxType)
                 val isIncoming = type == Telephony.Sms.MESSAGE_TYPE_INBOX
                 val isRead = cursor.getInt(idxRead) == 1 || !isIncoming
