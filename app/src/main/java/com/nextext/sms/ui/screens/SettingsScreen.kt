@@ -1,6 +1,8 @@
 package com.nextext.sms.ui.screens
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -47,6 +49,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onRequestDefaultSms: () -> Unit,
     onSetThemeMode: (ThemeMode) -> Unit,
+    onSetUseMaterial3Design: (Boolean) -> Unit,
     onSetDynamicColor: (Boolean) -> Unit,
     onSetAutoDeleteOtps: (Boolean) -> Unit,
     onSetMutePromotions: (Boolean) -> Unit,
@@ -130,7 +133,12 @@ fun SettingsScreen(
                     Column(modifier = Modifier.padding(14.dp)) {
                         Text("Appearance", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             ThemeMode.entries.forEach { mode ->
                                 FilterChip(
                                     selected = preferences.themeMode == mode,
@@ -141,11 +149,19 @@ fun SettingsScreen(
                         }
                         Spacer(Modifier.height(8.dp))
                         ToggleRow(
-                            title = "Material You Dynamic Color",
-                            subtitle = "Use wallpaper colors on Android 12+",
-                            checked = preferences.dynamicColor,
-                            onCheckedChange = onSetDynamicColor
+                            title = "Material 3 Design",
+                            subtitle = "Enable Google Material 3 design and dynamic theme instead of SMS Organizer Pitch Black AMOLED style",
+                            checked = preferences.useMaterial3Design,
+                            onCheckedChange = onSetUseMaterial3Design
                         )
+                        if (preferences.useMaterial3Design) {
+                            ToggleRow(
+                                title = "Material You Dynamic Color",
+                                subtitle = "Use wallpaper colors on Android 12+",
+                                checked = preferences.dynamicColor,
+                                onCheckedChange = onSetDynamicColor
+                            )
+                        }
                     }
                 }
             }

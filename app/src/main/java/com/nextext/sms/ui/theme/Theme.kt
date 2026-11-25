@@ -46,19 +46,43 @@ private val DarkColors = darkColorScheme(
     onSurfaceVariant = Color(0xFF94A3B8)
 )
 
+private val PitchBlackColors = darkColorScheme(
+    primary = Color(0xFF5B86E5),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFF1E293B),
+    onPrimaryContainer = Color(0xFFD6E4FF),
+    secondary = Color(0xFF25D366),
+    onSecondary = Color.Black,
+    secondaryContainer = Color(0xFF132E20),
+    onSecondaryContainer = Color(0xFF86EFAC),
+    tertiary = Color(0xFF38BDF8),
+    background = Color(0xFF000000),
+    surface = Color(0xFF000000),
+    surfaceVariant = Color(0xFF121418),
+    onSurface = Color(0xFFF3F4F6),
+    onSurfaceVariant = Color(0xFF9E9E9E),
+    outline = Color(0xFF22242A),
+    outlineVariant = Color(0xFF16181D)
+)
+
 @Composable
 fun NexTextTheme(
-    themeMode: ThemeMode = ThemeMode.SYSTEM,
-    dynamicColor: Boolean = true,
+    themeMode: ThemeMode = ThemeMode.PITCH_BLACK,
+    useMaterial3Design: Boolean = false,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val darkTheme = when (themeMode) {
-        ThemeMode.SYSTEM -> isSystemInDarkTheme()
-        ThemeMode.LIGHT -> false
+        ThemeMode.PITCH_BLACK -> true
         ThemeMode.DARK -> true
+        ThemeMode.LIGHT -> false
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
     }
 
     val colorScheme = when {
+        !useMaterial3Design -> {
+            if (darkTheme) PitchBlackColors else LightColors
+        }
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)

@@ -56,10 +56,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Color
 import com.nextext.sms.data.local.ReminderEntity
 import com.nextext.sms.data.local.TransitOrderEntity
 import com.nextext.sms.domain.model.ReminderKind
 import com.nextext.sms.domain.model.TransitOrderKind
+import com.nextext.sms.ui.components.SmsOrganizerTopTabs
 import com.nextext.sms.ui.util.Formatters
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,6 +70,9 @@ import com.nextext.sms.ui.util.Formatters
 fun SmartHubScreen(
     reminders: List<ReminderEntity>,
     transitOrders: List<TransitOrderEntity>,
+    useMaterial3Design: Boolean = false,
+    onNavigateToMessages: () -> Unit = {},
+    onNavigateToFinance: () -> Unit = {},
     onToggleReminderDone: (Long, Boolean) -> Unit,
     onToggleReminderNotify: (Long, Boolean) -> Unit,
     onDeleteReminder: (Long) -> Unit,
@@ -79,10 +85,31 @@ fun SmartHubScreen(
     val context = LocalContext.current
 
     Scaffold(
+        containerColor = if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = { Text("Reminders & Trips", fontWeight = FontWeight.Bold) }
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.surface)
+            ) {
+                TopAppBar(
+                    colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                        containerColor = if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.surface,
+                        titleContentColor = if (!useMaterial3Design) Color.White else MaterialTheme.colorScheme.onSurface
+                    ),
+                    title = { Text("Reminders & Trips", fontWeight = FontWeight.Bold) }
+                )
+                if (!useMaterial3Design) {
+                    SmsOrganizerTopTabs(
+                        selectedTab = 1,
+                        onSelectTab = { tab ->
+                            if (tab == 0) onNavigateToMessages()
+                            else if (tab == 2) onNavigateToFinance()
+                        },
+                        unreadMessagesCount = 0
+                    )
+                }
+            }
         },
         floatingActionButton = {
             if (selectedTab == 0) {

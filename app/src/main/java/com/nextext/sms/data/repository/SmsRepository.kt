@@ -385,6 +385,24 @@ class SmsRepository(
         }
     }
 
+    suspend fun markAllAsRead() = withContext(Dispatchers.IO) {
+        messageDao.markAllAsRead()
+        if (isDefaultSmsApp()) {
+            runCatching {
+                val values = ContentValues().apply {
+                    put(Telephony.Sms.READ, 1)
+                    put(Telephony.Sms.SEEN, 1)
+                }
+                context.contentResolver.update(
+                    Telephony.Sms.Inbox.CONTENT_URI,
+                    values,
+                    "${Telephony.Sms.READ} = 0",
+                    null
+                )
+            }
+        }
+    }
+
     suspend fun setThreadArchived(threadId: Long, archived: Boolean) = withContext(Dispatchers.IO) {
         messageDao.setThreadArchived(threadId, archived)
     }

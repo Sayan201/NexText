@@ -14,14 +14,16 @@ import kotlinx.coroutines.flow.map
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "nextext_prefs")
 
 enum class ThemeMode(val label: String) {
-    SYSTEM("System Default"),
+    PITCH_BLACK("Pitch Black (AMOLED)"),
+    DARK("Dark"),
     LIGHT("Light"),
-    DARK("Dark")
+    SYSTEM("System Default")
 }
 
 data class UserPreferences(
-    val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val dynamicColor: Boolean = true,
+    val themeMode: ThemeMode = ThemeMode.PITCH_BLACK,
+    val useMaterial3Design: Boolean = false,
+    val dynamicColor: Boolean = false,
     val autoDeleteOldOtps: Boolean = false,
     val mutePromotionsNotifications: Boolean = true,
     val showOtpCopyNotification: Boolean = true,
@@ -32,6 +34,7 @@ class UserPreferencesRepository(private val context: Context) {
 
     private object Keys {
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val USE_MATERIAL3 = booleanPreferencesKey("use_material3")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val AUTO_DELETE_OTPS = booleanPreferencesKey("auto_delete_otps")
         val MUTE_PROMOS = booleanPreferencesKey("mute_promos")
@@ -42,9 +45,10 @@ class UserPreferencesRepository(private val context: Context) {
     val preferences: Flow<UserPreferences> = context.dataStore.data.map { prefs ->
         UserPreferences(
             themeMode = prefs[Keys.THEME_MODE]?.let {
-                runCatching { ThemeMode.valueOf(it) }.getOrDefault(ThemeMode.SYSTEM)
-            } ?: ThemeMode.SYSTEM,
-            dynamicColor = prefs[Keys.DYNAMIC_COLOR] ?: true,
+                runCatching { ThemeMode.valueOf(it) }.getOrDefault(ThemeMode.PITCH_BLACK)
+            } ?: ThemeMode.PITCH_BLACK,
+            useMaterial3Design = prefs[Keys.USE_MATERIAL3] ?: false,
+            dynamicColor = prefs[Keys.DYNAMIC_COLOR] ?: false,
             autoDeleteOldOtps = prefs[Keys.AUTO_DELETE_OTPS] ?: false,
             mutePromotionsNotifications = prefs[Keys.MUTE_PROMOS] ?: true,
             showOtpCopyNotification = prefs[Keys.OTP_NOTIFICATION] ?: true,
@@ -54,6 +58,10 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { it[Keys.THEME_MODE] = mode.name }
+    }
+
+    suspend fun setUseMaterial3Design(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.USE_MATERIAL3] = enabled }
     }
 
     suspend fun setDynamicColor(enabled: Boolean) {

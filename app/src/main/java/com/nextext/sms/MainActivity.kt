@@ -68,6 +68,7 @@ class MainActivity : ComponentActivity() {
             val prefs by viewModel.preferences.collectAsStateWithLifecycle()
             NexTextTheme(
                 themeMode = prefs.themeMode,
+                useMaterial3Design = prefs.useMaterial3Design,
                 dynamicColor = prefs.dynamicColor
             ) {
                 NexTextApp(
@@ -216,9 +217,10 @@ private fun NexTextApp(
         }
     }
 
+    val unreadOnly by viewModel.unreadOnly.collectAsStateWithLifecycle()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    val showBottomBar = currentRoute in listOf(Routes.INBOX, Routes.FINANCE, Routes.SMART_HUB)
+    val showBottomBar = prefs.useMaterial3Design && currentRoute in listOf(Routes.INBOX, Routes.FINANCE, Routes.SMART_HUB)
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -282,6 +284,8 @@ private fun NexTextApp(
                     isSyncing = isSyncing,
                     isDefaultSmsApp = isDefaultSmsApp,
                     hasPermissions = hasPermissions,
+                    unreadOnly = unreadOnly,
+                    useMaterial3Design = prefs.useMaterial3Design,
                     onSelectFilter = viewModel::setFilter,
                     onOpenThread = { thread ->
                         val title = thread.contactName?.takeIf { it.isNotBlank() } ?: thread.address
@@ -293,6 +297,8 @@ private fun NexTextApp(
                     onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                     onOpenCompose = { navController.navigate(Routes.composeRoute()) },
                     onSyncClick = viewModel::syncSms,
+                    onToggleUnreadOnly = viewModel::toggleUnreadOnly,
+                    onMarkAllAsRead = viewModel::markAllAsRead,
                     onRequestDefaultSms = {
                         onRequestDefaultSms { defaultSmsLauncher.launch(it) }
                     },
@@ -300,13 +306,42 @@ private fun NexTextApp(
                     onArchiveThread = viewModel::setThreadArchived,
                     onDeleteThread = viewModel::deleteThread,
                     onMarkRead = viewModel::markThreadRead,
-                    onCopyOtp = { otp -> viewModel.showMessage("OTP $otp copied") }
+                    onCopyOtp = { otp -> viewModel.showMessage("OTP $otp copied") },
+                    onNavigateToReminders = {
+                        navController.navigate(Routes.SMART_HUB) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onNavigateToFinance = {
+                        navController.navigate(Routes.FINANCE) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
                 )
             }
 
             composable(Routes.FINANCE) {
                 FinanceScreen(
                     state = financeState,
+                    useMaterial3Design = prefs.useMaterial3Design,
+                    onNavigateToMessages = {
+                        navController.navigate(Routes.INBOX) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onNavigateToReminders = {
+                        navController.navigate(Routes.SMART_HUB) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
                     onOpenThread = { threadId, address ->
                         navController.navigate(Routes.threadRoute(threadId, address, address))
                     }
@@ -317,6 +352,21 @@ private fun NexTextApp(
                 SmartHubScreen(
                     reminders = reminders,
                     transitOrders = transitOrders,
+                    useMaterial3Design = prefs.useMaterial3Design,
+                    onNavigateToMessages = {
+                        navController.navigate(Routes.INBOX) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onNavigateToFinance = {
+                        navController.navigate(Routes.FINANCE) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
                     onToggleReminderDone = viewModel::toggleReminderCompleted,
                     onToggleReminderNotify = viewModel::toggleReminderNotify,
                     onDeleteReminder = viewModel::deleteReminder,
@@ -353,6 +403,7 @@ private fun NexTextApp(
                         onRequestDefaultSms { defaultSmsLauncher.launch(it) }
                     },
                     onSetThemeMode = viewModel::setThemeMode,
+                    onSetUseMaterial3Design = viewModel::setUseMaterial3Design,
                     onSetDynamicColor = viewModel::setDynamicColor,
                     onSetAutoDeleteOtps = viewModel::setAutoDeleteOldOtps,
                     onSetMutePromotions = viewModel::setMutePromotions,

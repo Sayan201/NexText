@@ -63,6 +63,9 @@ interface MessageDao {
     @Query("UPDATE messages SET isRead = 1 WHERE threadId = :threadId AND isRead = 0")
     suspend fun markThreadAsRead(threadId: Long)
 
+    @Query("UPDATE messages SET isRead = 1 WHERE isRead = 0 AND isDeleted = 0")
+    suspend fun markAllAsRead()
+
     @Query("UPDATE messages SET isArchived = :archived WHERE threadId = :threadId")
     suspend fun setThreadArchived(threadId: Long, archived: Boolean)
 

@@ -64,6 +64,9 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
     private val prefsRepo = container.preferencesRepository
     private val backupManager = container.backupManager
 
+    private val _unreadOnly = MutableStateFlow(false)
+    val unreadOnly: StateFlow<Boolean> = _unreadOnly.asStateFlow()
+
     private val _selectedFilter = MutableStateFlow(InboxFilter.PERSONAL)
     val selectedFilter: StateFlow<InboxFilter> = _selectedFilter.asStateFlow()
 
@@ -108,9 +111,10 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
 
     val filteredThreads: StateFlow<List<ThreadSummary>> = combine(
         allThreads,
-        _selectedFilter
-    ) { threads, filter ->
-        when (filter) {
+        _selectedFilter,
+        _unreadOnly
+    ) { threads, filter, unreadOnly ->
+        val byCat = when (filter) {
             InboxFilter.PERSONAL -> threads.filter { !it.isArchived && it.category == MessageCategory.PERSONAL }
             InboxFilter.TRANSACTIONS -> threads.filter { !it.isArchived && it.category == MessageCategory.TRANSACTIONS }
             InboxFilter.PROMOTIONS -> threads.filter { !it.isArchived && it.category == MessageCategory.PROMOTIONS }
@@ -118,6 +122,7 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
             InboxFilter.STARRED -> threads.filter { it.hasStarred }
             InboxFilter.ARCHIVED -> threads.filter { it.isArchived }
         }
+        if (unreadOnly) byCat.filter { it.unreadCount > 0 } else byCat
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val unreadCounts: StateFlow<Map<MessageCategory, Int>> = combine(
@@ -214,8 +219,19 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
 
     fun observeIsBlocked(address: String): Flow<Boolean> = repo.observeIsBlocked(address)
 
+    fun toggleUnreadOnly() {
+        _unreadOnly.value = !_unreadOnly.value
+    }
+
     fun markThreadRead(threadId: Long) {
         viewModelScope.launch { repo.markThreadRead(threadId) }
+    }
+
+    fun markAllAsRead() {
+        viewModelScope.launch {
+            repo.markAllAsRead()
+            _snackbarMessage.value = "All messages marked as read"
+        }
     }
 
     fun setThreadArchived(threadId: Long, archived: Boolean) {
@@ -332,6 +348,10 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { prefsRepo.setThemeMode(mode) }
+    }
+
+    fun setUseMaterial3Design(enabled: Boolean) {
+        viewModelScope.launch { prefsRepo.setUseMaterial3Design(enabled) }
     }
 
     fun setDynamicColor(enabled: Boolean) {

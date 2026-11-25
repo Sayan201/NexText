@@ -1,5 +1,6 @@
 package com.nextext.sms.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -59,6 +60,9 @@ private enum class TxFilter(val label: String) {
 @Composable
 fun FinanceScreen(
     state: FinanceDashboardState,
+    useMaterial3Design: Boolean = false,
+    onNavigateToMessages: () -> Unit = {},
+    onNavigateToReminders: () -> Unit = {},
     onOpenThread: (Long, String) -> Unit
 ) {
     var selectedFilter by remember { mutableStateOf(TxFilter.ALL) }
@@ -74,10 +78,31 @@ fun FinanceScreen(
     }
 
     Scaffold(
+        containerColor = if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = { Text("Passbook & Expenses", fontWeight = FontWeight.Bold) }
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.surface)
+            ) {
+                TopAppBar(
+                    colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                        containerColor = if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.surface,
+                        titleContentColor = if (!useMaterial3Design) Color.White else MaterialTheme.colorScheme.onSurface
+                    ),
+                    title = { Text("Passbook & Expenses", fontWeight = FontWeight.Bold) }
+                )
+                if (!useMaterial3Design) {
+                    SmsOrganizerTopTabs(
+                        selectedTab = 2,
+                        onSelectTab = { tab ->
+                            if (tab == 0) onNavigateToMessages()
+                            else if (tab == 1) onNavigateToReminders()
+                        },
+                        unreadMessagesCount = 0
+                    )
+                }
+            }
         }
     ) { innerPadding ->
         if (state.transactions.isEmpty()) {
