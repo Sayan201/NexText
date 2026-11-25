@@ -20,8 +20,23 @@ enum class ThemeMode(val label: String) {
     SYSTEM("System Default")
 }
 
+enum class PitchBlackAccent(
+    val label: String,
+    val primaryHex: Long,
+    val containerHex: Long,
+    val onContainerHex: Long
+) {
+    PURPLE("Purple", 0xFFA855F7, 0xFF2B1644, 0xFFE9D5FF),
+    BLUE("Blue", 0xFF5B86E5, 0xFF1A2942, 0xFFD6E4FF),
+    EMERALD("Green", 0xFF25D366, 0xFF102E1C, 0xFFA7F3D0),
+    ROSE("Rose", 0xFFF43F5E, 0xFF3A121D, 0xFFFECDD3),
+    CYAN("Cyan", 0xFF06B6D4, 0xFF0E2F38, 0xFFA5F3FC),
+    AMBER("Amber", 0xFFF59E0B, 0xFF362409, 0xFFFDE68A)
+}
+
 data class UserPreferences(
     val themeMode: ThemeMode = ThemeMode.PITCH_BLACK,
+    val pitchBlackAccent: PitchBlackAccent = PitchBlackAccent.PURPLE,
     val useMaterial3Design: Boolean = false,
     val dynamicColor: Boolean = false,
     val autoDeleteOldOtps: Boolean = false,
@@ -34,6 +49,7 @@ class UserPreferencesRepository(private val context: Context) {
 
     private object Keys {
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val PITCH_BLACK_ACCENT = stringPreferencesKey("pitch_black_accent")
         val USE_MATERIAL3 = booleanPreferencesKey("use_material3")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val AUTO_DELETE_OTPS = booleanPreferencesKey("auto_delete_otps")
@@ -47,6 +63,9 @@ class UserPreferencesRepository(private val context: Context) {
             themeMode = prefs[Keys.THEME_MODE]?.let {
                 runCatching { ThemeMode.valueOf(it) }.getOrDefault(ThemeMode.PITCH_BLACK)
             } ?: ThemeMode.PITCH_BLACK,
+            pitchBlackAccent = prefs[Keys.PITCH_BLACK_ACCENT]?.let {
+                runCatching { PitchBlackAccent.valueOf(it) }.getOrDefault(PitchBlackAccent.PURPLE)
+            } ?: PitchBlackAccent.PURPLE,
             useMaterial3Design = prefs[Keys.USE_MATERIAL3] ?: false,
             dynamicColor = prefs[Keys.DYNAMIC_COLOR] ?: false,
             autoDeleteOldOtps = prefs[Keys.AUTO_DELETE_OTPS] ?: false,
@@ -58,6 +77,10 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { it[Keys.THEME_MODE] = mode.name }
+    }
+
+    suspend fun setPitchBlackAccent(accent: PitchBlackAccent) {
+        context.dataStore.edit { it[Keys.PITCH_BLACK_ACCENT] = accent.name }
     }
 
     suspend fun setUseMaterial3Design(enabled: Boolean) {

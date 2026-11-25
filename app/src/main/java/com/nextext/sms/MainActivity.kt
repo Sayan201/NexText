@@ -13,14 +13,17 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -31,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -41,6 +45,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.nextext.sms.sms.NotificationHelper
+import com.nextext.sms.ui.components.LiquidGlassNavBottomBar
 import com.nextext.sms.ui.screens.ComposeScreen
 import com.nextext.sms.ui.screens.FinanceScreen
 import com.nextext.sms.ui.screens.InboxScreen
@@ -60,7 +65,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
         val initialSendTarget = extractSmsTarget(intent)
         val initialThreadId = intent.getLongExtra(NotificationHelper.EXTRA_THREAD_ID, -1L)
 
@@ -68,6 +72,7 @@ class MainActivity : ComponentActivity() {
             val prefs by viewModel.preferences.collectAsStateWithLifecycle()
             NexTextTheme(
                 themeMode = prefs.themeMode,
+                pitchBlackAccent = prefs.pitchBlackAccent,
                 useMaterial3Design = prefs.useMaterial3Design,
                 dynamicColor = prefs.dynamicColor
             ) {
@@ -268,13 +273,17 @@ private fun NexTextApp(
             }
         }
     ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = Routes.INBOX,
+        Box(
             modifier = Modifier
+                .fillMaxSize()
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding)
         ) {
+            NavHost(
+                navController = navController,
+                startDestination = Routes.INBOX,
+                modifier = Modifier.fillMaxSize()
+            ) {
             composable(Routes.INBOX) {
                 InboxScreen(
                     threads = threads,
@@ -403,6 +412,7 @@ private fun NexTextApp(
                         onRequestDefaultSms { defaultSmsLauncher.launch(it) }
                     },
                     onSetThemeMode = viewModel::setThemeMode,
+                    onSetPitchBlackAccent = viewModel::setPitchBlackAccent,
                     onSetUseMaterial3Design = viewModel::setUseMaterial3Design,
                     onSetDynamicColor = viewModel::setDynamicColor,
                     onSetAutoDeleteOtps = viewModel::setAutoDeleteOldOtps,
@@ -503,6 +513,37 @@ private fun NexTextApp(
                     onShowMessage = viewModel::showMessage
                 )
             }
+        }
+
+        if (!prefs.useMaterial3Design && currentRoute in listOf(Routes.INBOX, Routes.FINANCE, Routes.SMART_HUB)) {
+            val selectedTab = when (currentRoute) {
+                Routes.INBOX -> 0
+                Routes.SMART_HUB -> 1
+                Routes.FINANCE -> 2
+                else -> 0
+            }
+            LiquidGlassNavBottomBar(
+                selectedTab = selectedTab,
+                unreadMessagesCount = unreadCounts.values.sum(),
+                accentColor = MaterialTheme.colorScheme.primary,
+                onSelectTab = { tab ->
+                    val target = when (tab) {
+                        0 -> Routes.INBOX
+                        1 -> Routes.SMART_HUB
+                        2 -> Routes.FINANCE
+                        else -> Routes.INBOX
+                    }
+                    if (currentRoute != target) {
+                        navController.navigate(target) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
         }
     }
 }

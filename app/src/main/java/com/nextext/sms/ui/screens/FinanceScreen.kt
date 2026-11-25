@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nextext.sms.data.local.TransactionEntity
 import com.nextext.sms.domain.model.TransactionType
+import com.nextext.sms.ui.components.TopAmbientGlow
 import com.nextext.sms.ui.util.Formatters
 import com.nextext.sms.ui.viewmodel.AccountCardSummary
 import com.nextext.sms.ui.viewmodel.FinanceDashboardState
@@ -77,34 +78,32 @@ fun FinanceScreen(
         }
     }
 
-    Scaffold(
-        containerColor = if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.background,
-        topBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.surface)
-            ) {
+    val accentColor = MaterialTheme.colorScheme.primary
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.background)
+    ) {
+        if (!useMaterial3Design) {
+            TopAmbientGlow(
+                accentColor = accentColor,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+        }
+
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
                 TopAppBar(
                     colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                        containerColor = if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.surface,
+                        containerColor = Color.Transparent,
                         titleContentColor = if (!useMaterial3Design) Color.White else MaterialTheme.colorScheme.onSurface
                     ),
                     title = { Text("Passbook & Expenses", fontWeight = FontWeight.Bold) }
                 )
-                if (!useMaterial3Design) {
-                    SmsOrganizerTopTabs(
-                        selectedTab = 2,
-                        onSelectTab = { tab ->
-                            if (tab == 0) onNavigateToMessages()
-                            else if (tab == 1) onNavigateToReminders()
-                        },
-                        unreadMessagesCount = 0
-                    )
-                }
             }
-        }
-    ) { innerPadding ->
+        ) { innerPadding ->
         if (state.transactions.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -135,7 +134,12 @@ fun FinanceScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 16.dp,
+                    bottom = if (!useMaterial3Design) 112.dp else 16.dp
+                ),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
@@ -188,6 +192,7 @@ fun FinanceScreen(
                     )
                 }
             }
+        }
         }
     }
 }

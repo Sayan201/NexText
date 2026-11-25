@@ -305,7 +305,7 @@ private fun Photo3SendBar(
                     color = Color.White,
                     fontSize = 16.sp
                 ),
-                cursorBrush = SolidColor(Color(0xFF5B86E5)),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 maxLines = 5,
                 decorationBox = { innerTextField ->
                     if (draft.isEmpty()) {
@@ -369,7 +369,7 @@ private fun Photo3SendBar(
                                         text = {
                                             Text(
                                                 "SIM ${sim.slotIndex + 1} (${sim.displayName})" + (if (isSelected) " ✓" else ""),
-                                                color = if (isSelected) Color(0xFF5B86E5) else Color.White
+                                                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White
                                             )
                                         },
                                         onClick = {
@@ -449,7 +449,7 @@ private fun Photo4MessageBubble(
                             text = message.smartBadge,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF5B86E5)
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(Modifier.height(4.dp))
                     }
@@ -467,7 +467,7 @@ private fun Photo4MessageBubble(
                                 Icons.Default.ContentCopy,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
-                                tint = Color(0xFF5B86E5)
+                                tint = MaterialTheme.colorScheme.primary
                             )
                             Spacer(Modifier.width(6.dp))
                             Text("Copy OTP ${message.otpCode}", color = Color.White)
@@ -489,7 +489,7 @@ private fun Photo4MessageBubble(
                                 Icons.Default.Star,
                                 contentDescription = "Starred",
                                 modifier = Modifier.size(12.dp),
-                                tint = Color(0xFF5B86E5)
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
                     }

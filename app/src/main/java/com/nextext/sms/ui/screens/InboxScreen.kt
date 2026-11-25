@@ -94,6 +94,8 @@ import androidx.compose.ui.unit.sp
 import com.nextext.sms.data.local.MessageEntity
 import com.nextext.sms.data.local.ThreadSummary
 import com.nextext.sms.domain.model.MessageCategory
+import com.nextext.sms.ui.components.TopAmbientGlow
+import com.nextext.sms.ui.components.TopCategoryFilterTabs
 import com.nextext.sms.ui.util.Formatters
 import com.nextext.sms.ui.viewmodel.InboxFilter
 import kotlin.math.abs
@@ -124,26 +126,39 @@ fun InboxScreen(
     onDeleteThread: (Long) -> Unit,
     onMarkRead: (Long) -> Unit,
     onCopyOtp: (String) -> Unit,
-    onNavigateToReminders: () -> Unit,
-    onNavigateToFinance: () -> Unit
+    onNavigateToReminders: () -> Unit = {},
+    onNavigateToFinance: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var showTopOverflowMenu by remember { mutableStateOf(false) }
+    val accentColor = MaterialTheme.colorScheme.primary
 
-    Scaffold(
-        containerColor = if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.background,
-        topBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.surface)
-            ) {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.surface,
-                        titleContentColor = if (!useMaterial3Design) Color.White else MaterialTheme.colorScheme.onSurface,
-                        actionIconContentColor = if (!useMaterial3Design) Color.White else MaterialTheme.colorScheme.onSurface
-                    ),
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.background)
+    ) {
+        if (!useMaterial3Design) {
+            TopAmbientGlow(
+                accentColor = accentColor,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+        }
+
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(if (!useMaterial3Design) Color.Transparent else MaterialTheme.colorScheme.surface)
+                ) {
+                    TopAppBar(
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent,
+                            titleContentColor = if (!useMaterial3Design) Color.White else MaterialTheme.colorScheme.onSurface,
+                            actionIconContentColor = if (!useMaterial3Design) Color.White else MaterialTheme.colorScheme.onSurface
+                        ),
                     title = {
                         Text(
                             text = "NexText",
@@ -202,20 +217,16 @@ fun InboxScreen(
                     }
                 )
 
-                // Photo 4 Top Tabs: Messages | Reminders | Finance
-                if (!useMaterial3Design) {
-                    SmsOrganizerTopTabs(
-                        selectedTab = 0, // 0 = Messages
-                        onSelectTab = { tab ->
-                            when (tab) {
-                                1 -> onNavigateToReminders()
-                                2 -> onNavigateToFinance()
-                            }
-                        },
-                        unreadMessagesCount = unreadCounts.values.sum()
-                    )
+                    // Top category tabs: Personal | Transactions | Promotions | Starred
+                    if (!useMaterial3Design) {
+                        TopCategoryFilterTabs(
+                            selectedFilter = selectedFilter,
+                            unreadCounts = unreadCounts,
+                            accentColor = accentColor,
+                            onSelectFilter = onSelectFilter
+                        )
+                    }
                 }
-            }
         }
     ) { innerPadding ->
         Box(
@@ -227,7 +238,7 @@ fun InboxScreen(
                 if (isSyncing) {
                     LinearProgressIndicator(
                         modifier = Modifier.fillMaxWidth(),
-                        color = Color(0xFF5B86E5)
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
 
@@ -278,7 +289,7 @@ fun InboxScreen(
                                 imageVector = Icons.Default.Shield,
                                 contentDescription = null,
                                 modifier = Modifier.size(48.dp),
-                                tint = Color(0xFF5B86E5).copy(alpha = 0.6f)
+                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
                             )
                             Spacer(Modifier.height(12.dp))
                             Text(
@@ -307,7 +318,7 @@ fun InboxScreen(
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 96.dp)
+                        contentPadding = PaddingValues(bottom = 112.dp)
                     ) {
                         items(threads, key = { it.threadId }) { thread ->
                             Photo4ThreadListRow(
@@ -329,31 +340,20 @@ fun InboxScreen(
                 }
             }
 
-            // Photo 4 Floating Action Button (FAB) at bottom-right above the floating capsule
+            // Floating Action Button (FAB) at bottom-right above the larger floating capsule
             FloatingActionButton(
                 onClick = onOpenCompose,
                 shape = CircleShape,
-                containerColor = Color(0xFF5B86E5),
+                containerColor = accentColor,
                 contentColor = Color.White,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
-                    .padding(end = 18.dp, bottom = if (!useMaterial3Design) 80.dp else 16.dp)
+                    .padding(end = 18.dp, bottom = if (!useMaterial3Design) 98.dp else 16.dp)
             ) {
                 Icon(Icons.Default.Edit, contentDescription = "New message")
             }
-
-            // WhatsApp flowering (floating capsule) + Twitter liquid glass bottom bar
-            if (!useMaterial3Design) {
-                LiquidGlassFloatingBottomBar(
-                    selectedFilter = selectedFilter,
-                    unreadCounts = unreadCounts,
-                    onSelectFilter = onSelectFilter,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
-                )
-            }
+        }
         }
     }
 }
@@ -404,7 +404,7 @@ private fun Photo5TopOverflowMenu(
                         checked = unreadOnly,
                         onCheckedChange = { onToggleUnreadOnly() },
                         colors = CheckboxDefaults.colors(
-                            checkedColor = Color(0xFF5B86E5),
+                            checkedColor = MaterialTheme.colorScheme.primary,
                             uncheckedColor = Color(0xFF9E9E9E),
                             checkmarkColor = Color.White
                         )
@@ -517,7 +517,7 @@ fun SmsOrganizerTopTabs(
                     Icon(
                         imageVector = icon,
                         contentDescription = label,
-                        tint = if (isSelected) Color(0xFF5B86E5) else Color(0xFF888888),
+                        tint = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFF888888),
                         modifier = Modifier.size(20.dp)
                     )
                     if (index == 0 && unreadMessagesCount > 0) {
@@ -535,14 +535,14 @@ fun SmsOrganizerTopTabs(
                     text = label,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isSelected) Color(0xFF5B86E5) else Color(0xFF888888)
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFF888888)
                 )
                 Spacer(Modifier.height(5.dp))
                 Box(
                     modifier = Modifier
                         .width(42.dp)
                         .height(2.5.dp)
-                        .background(if (isSelected) Color(0xFF5B86E5) else Color.Transparent)
+                        .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
                 )
             }
         }
@@ -704,7 +704,7 @@ private fun Photo4ThreadListRow(
                     Text(
                         text = Formatters.formatRelativeTime(thread.lastTimestamp),
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (isUnread) Color(0xFF5B86E5) else Color(0xFF888888)
+                        color = if (isUnread) MaterialTheme.colorScheme.primary else Color(0xFF888888)
                     )
                 }
 
@@ -884,7 +884,7 @@ private fun OnboardingBanner(
             Spacer(Modifier.width(12.dp))
             Button(
                 onClick = onClick,
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFF5B86E5))
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text(actionLabel, color = Color.White)
             }
@@ -922,7 +922,7 @@ private fun RecentOtpCard(
             }
             Button(
                 onClick = onCopy,
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFF5B86E5))
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))

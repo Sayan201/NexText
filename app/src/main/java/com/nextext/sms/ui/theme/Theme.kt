@@ -10,6 +10,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import com.nextext.sms.data.preferences.PitchBlackAccent
 import com.nextext.sms.data.preferences.ThemeMode
 
 private val LightColors = lightColorScheme(
@@ -46,11 +47,11 @@ private val DarkColors = darkColorScheme(
     onSurfaceVariant = Color(0xFF94A3B8)
 )
 
-private val PitchBlackColors = darkColorScheme(
-    primary = Color(0xFF5B86E5),
+private fun pitchBlackColors(accent: PitchBlackAccent) = darkColorScheme(
+    primary = Color(accent.primaryHex),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFF1E293B),
-    onPrimaryContainer = Color(0xFFD6E4FF),
+    primaryContainer = Color(accent.containerHex),
+    onPrimaryContainer = Color(accent.onContainerHex),
     secondary = Color(0xFF25D366),
     onSecondary = Color.Black,
     secondaryContainer = Color(0xFF132E20),
@@ -68,6 +69,7 @@ private val PitchBlackColors = darkColorScheme(
 @Composable
 fun NexTextTheme(
     themeMode: ThemeMode = ThemeMode.PITCH_BLACK,
+    pitchBlackAccent: PitchBlackAccent = PitchBlackAccent.PURPLE,
     useMaterial3Design: Boolean = false,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
@@ -81,7 +83,7 @@ fun NexTextTheme(
 
     val colorScheme = when {
         !useMaterial3Design -> {
-            if (darkTheme) PitchBlackColors else LightColors
+            if (darkTheme) pitchBlackColors(pitchBlackAccent) else LightColors
         }
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current

@@ -1,7 +1,11 @@
 package com.nextext.sms.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,9 +15,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Security
@@ -34,9 +40,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nextext.sms.data.local.BlockedSenderEntity
+import com.nextext.sms.data.preferences.PitchBlackAccent
 import com.nextext.sms.data.preferences.ThemeMode
 import com.nextext.sms.data.preferences.UserPreferences
 
@@ -49,6 +58,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onRequestDefaultSms: () -> Unit,
     onSetThemeMode: (ThemeMode) -> Unit,
+    onSetPitchBlackAccent: (PitchBlackAccent) -> Unit,
     onSetUseMaterial3Design: (Boolean) -> Unit,
     onSetDynamicColor: (Boolean) -> Unit,
     onSetAutoDeleteOtps: (Boolean) -> Unit,
@@ -154,7 +164,49 @@ fun SettingsScreen(
                             checked = preferences.useMaterial3Design,
                             onCheckedChange = onSetUseMaterial3Design
                         )
-                        if (preferences.useMaterial3Design) {
+                        if (!preferences.useMaterial3Design) {
+                            Spacer(Modifier.height(10.dp))
+                            Text(
+                                "Pitch Black Accent & Top Glow",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                "Choose your accent and ambient top glow color",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                PitchBlackAccent.entries.forEach { accent ->
+                                    val isSelected = preferences.pitchBlackAccent == accent
+                                    val swatchColor = Color(accent.primaryHex)
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = { onSetPitchBlackAccent(accent) },
+                                        leadingIcon = {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(14.dp)
+                                                    .clip(CircleShape)
+                                                    .background(swatchColor)
+                                                    .border(
+                                                        width = if (isSelected) 1.5.dp else 0.5.dp,
+                                                        color = Color.White.copy(alpha = if (isSelected) 0.9f else 0.3f),
+                                                        shape = CircleShape
+                                                    )
+                                            )
+                                        },
+                                        label = { Text(accent.label) }
+                                    )
+                                }
+                            }
+                        } else {
                             ToggleRow(
                                 title = "Material You Dynamic Color",
                                 subtitle = "Use wallpaper colors on Android 12+",

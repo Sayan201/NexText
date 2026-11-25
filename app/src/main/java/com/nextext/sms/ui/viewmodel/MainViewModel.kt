@@ -11,6 +11,7 @@ import com.nextext.sms.data.local.ReminderEntity
 import com.nextext.sms.data.local.ThreadSummary
 import com.nextext.sms.data.local.TransactionEntity
 import com.nextext.sms.data.local.TransitOrderEntity
+import com.nextext.sms.data.preferences.PitchBlackAccent
 import com.nextext.sms.data.preferences.ThemeMode
 import com.nextext.sms.data.preferences.UserPreferences
 import com.nextext.sms.domain.model.ContactOption
@@ -348,6 +349,10 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { prefsRepo.setThemeMode(mode) }
+    }
+
+    fun setPitchBlackAccent(accent: PitchBlackAccent) {
+        viewModelScope.launch { prefsRepo.setPitchBlackAccent(accent) }
     }
 
     fun setUseMaterial3Design(enabled: Boolean) {

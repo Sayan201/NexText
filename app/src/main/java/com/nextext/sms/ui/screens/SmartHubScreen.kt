@@ -62,6 +62,7 @@ import com.nextext.sms.data.local.ReminderEntity
 import com.nextext.sms.data.local.TransitOrderEntity
 import com.nextext.sms.domain.model.ReminderKind
 import com.nextext.sms.domain.model.TransitOrderKind
+import com.nextext.sms.ui.components.TopAmbientGlow
 import com.nextext.sms.ui.util.Formatters
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,42 +83,44 @@ fun SmartHubScreen(
     var selectedTab by remember { mutableIntStateOf(0) }
     var showAddDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val accentColor = MaterialTheme.colorScheme.primary
 
-    Scaffold(
-        containerColor = if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.background,
-        topBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.surface)
-            ) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.background)
+    ) {
+        if (!useMaterial3Design) {
+            TopAmbientGlow(
+                accentColor = accentColor,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+        }
+
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
                 TopAppBar(
                     colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                        containerColor = if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.surface,
+                        containerColor = Color.Transparent,
                         titleContentColor = if (!useMaterial3Design) Color.White else MaterialTheme.colorScheme.onSurface
                     ),
                     title = { Text("Reminders & Trips", fontWeight = FontWeight.Bold) }
                 )
-                if (!useMaterial3Design) {
-                    SmsOrganizerTopTabs(
-                        selectedTab = 1,
-                        onSelectTab = { tab ->
-                            if (tab == 0) onNavigateToMessages()
-                            else if (tab == 2) onNavigateToFinance()
-                        },
-                        unreadMessagesCount = 0
-                    )
+            },
+            floatingActionButton = {
+                if (selectedTab == 0) {
+                    FloatingActionButton(
+                        onClick = { showAddDialog = true },
+                        containerColor = accentColor,
+                        contentColor = Color.White,
+                        modifier = Modifier.padding(bottom = if (!useMaterial3Design) 84.dp else 0.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Add reminder")
+                    }
                 }
             }
-        },
-        floatingActionButton = {
-            if (selectedTab == 0) {
-                FloatingActionButton(onClick = { showAddDialog = true }) {
-                    Icon(Icons.Default.Add, contentDescription = "Add reminder")
-                }
-            }
-        }
-    ) { innerPadding ->
+        ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -152,7 +155,12 @@ fun SmartHubScreen(
                     )
                 } else {
                     LazyColumn(
-                        contentPadding = PaddingValues(16.dp),
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = 16.dp,
+                            bottom = if (!useMaterial3Design) 112.dp else 16.dp
+                        ),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         items(reminders, key = { it.id }) { item ->
@@ -176,7 +184,12 @@ fun SmartHubScreen(
                     )
                 } else {
                     LazyColumn(
-                        contentPadding = PaddingValues(16.dp),
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = 16.dp,
+                            bottom = if (!useMaterial3Design) 112.dp else 16.dp
+                        ),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         items(transitOrders, key = { it.id }) { item ->
@@ -193,6 +206,7 @@ fun SmartHubScreen(
                     }
                 }
             }
+        }
         }
     }
 
