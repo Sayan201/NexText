@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -27,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -39,10 +41,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -170,9 +172,10 @@ fun TopCategoryFilterTabs(
 }
 
 /**
- * Crystal Liquid Glass floating capsule bottom bar with continuous spring-animated
- * sliding crystal lens indicator (matching Zangetsu / iOS 26 liquid glass style).
- * Supports both tap-to-glide and continuous horizontal drag scrubbing.
+ * Zangetsu-style crystal clear liquid glass bottom bar:
+ * - Left: Crystal clear frosted capsule with continuous spring-sliding lens that expands
+ *   outward beyond the capsule edges while switching or dragging.
+ * - Right: Separate circular crystal liquid glass New Message button.
  */
 @Composable
 fun LiquidGlassNavBottomBar(
@@ -181,6 +184,7 @@ fun LiquidGlassNavBottomBar(
     accentColor: Color,
     hazeState: HazeState,
     onSelectTab: (Int) -> Unit,
+    onComposeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val tabs = listOf(
@@ -189,8 +193,8 @@ fun LiquidGlassNavBottomBar(
         Triple(2, "Finance", Icons.Default.CreditCard)
     )
 
-    val capsuleShape = RoundedCornerShape(38.dp)
-    val pillShape = RoundedCornerShape(30.dp)
+    val capsuleShape = RoundedCornerShape(34.dp)
+    val pillShape = RoundedCornerShape(28.dp)
     val density = LocalDensity.current
 
     var isDragging by remember { mutableStateOf(false) }
@@ -199,67 +203,98 @@ fun LiquidGlassNavBottomBar(
     val animatedIndex by animateFloatAsState(
         targetValue = if (isDragging) dragIndex else selectedTab.toFloat(),
         animationSpec = spring(
-            dampingRatio = 0.74f,
+            dampingRatio = 0.72f,
             stiffness = Spring.StiffnessMediumLow
         ),
         label = "crystalPillSlide"
     )
 
-    Box(
+    val isSwitching = isDragging || abs(animatedIndex - selectedTab.toFloat()) > 0.04f
+
+    val lensScaleX by animateFloatAsState(
+        targetValue = if (isSwitching) 1.12f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = 0.65f,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "crystalScaleX"
+    )
+    val lensScaleY by animateFloatAsState(
+        targetValue = if (isSwitching) 1.26f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = 0.65f,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "crystalScaleY"
+    )
+    val lensCrystalAlpha by animateFloatAsState(
+        targetValue = if (isSwitching) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = 0.8f,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "crystalAlpha"
+    )
+
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        contentAlignment = Alignment.Center
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        // Left: Crystal Clear Navigation Capsule
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .shadow(
-                    elevation = 24.dp,
-                    shape = capsuleShape,
-                    ambientColor = accentColor.copy(alpha = 0.35f),
-                    spotColor = Color.Black
-                )
-                .clip(capsuleShape)
-                .hazeChild(
-                    state = hazeState,
-                    style = HazeDefaults.style(
-                        backgroundColor = Color(0x2E0B0D14),
-                        blurRadius = 26.dp,
-                        tint = HazeTint(Color(0x380A0C12))
-                    )
-                )
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.14f),
-                            Color(0x280E1018),
-                            Color(0x4006070B)
-                        )
-                    )
-                )
-                .border(
-                    width = 1.25.dp,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.58f),
-                            accentColor.copy(alpha = 0.30f),
-                            Color.White.copy(alpha = 0.16f)
-                        )
-                    ),
-                    shape = capsuleShape
-                )
+                .weight(1f)
+                .height(62.dp)
         ) {
+            // Crystal frosted glass background (clipped to capsuleShape so outer Box remains unclipped for lens bulge)
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(capsuleShape)
+                    .hazeChild(
+                        state = hazeState,
+                        style = HazeDefaults.style(
+                            backgroundColor = Color(0x14FFFFFF),
+                            blurRadius = 11.dp,
+                            tint = HazeTint(Color(0x14000000))
+                        )
+                    )
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.12f),
+                                Color.White.copy(alpha = 0.03f),
+                                Color.Black.copy(alpha = 0.12f)
+                            )
+                        )
+                    )
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.42f),
+                                Color.White.copy(alpha = 0.14f),
+                                Color.White.copy(alpha = 0.24f)
+                            )
+                        ),
+                        shape = capsuleShape
+                    )
+            )
+
+            // Unclipped foreground layer for continuous expanding liquid glass lens & tab items
             BoxWithConstraints(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 6.dp, vertical = 6.dp)
+                    .fillMaxSize()
+                    .padding(horizontal = 5.dp, vertical = 5.dp)
             ) {
                 val slotWidth = maxWidth / tabs.size
                 val slotWidthPx = with(density) { slotWidth.toPx() }
 
-                // Continuous sliding crystal lens indicator
+                // Expanding crystal lens indicator
                 Box(
                     modifier = Modifier
                         .offset {
@@ -269,34 +304,38 @@ fun LiquidGlassNavBottomBar(
                             )
                         }
                         .width(slotWidth)
-                        .height(56.dp)
+                        .height(52.dp)
+                        .graphicsLayer {
+                            scaleX = lensScaleX
+                            scaleY = lensScaleY
+                        }
                         .clip(pillShape)
                         .background(
                             Brush.verticalGradient(
                                 colors = listOf(
-                                    Color.White.copy(alpha = 0.22f),
-                                    accentColor.copy(alpha = 0.24f),
-                                    Color.White.copy(alpha = 0.08f)
+                                    Color.White.copy(alpha = 0.10f + 0.14f * lensCrystalAlpha),
+                                    accentColor.copy(alpha = 0.24f * (1f - 0.55f * lensCrystalAlpha)),
+                                    Color.White.copy(alpha = 0.05f + 0.08f * lensCrystalAlpha)
                                 )
                             )
                         )
                         .border(
-                            width = 1.dp,
+                            width = (0.85f + 0.5f * lensCrystalAlpha).dp,
                             brush = Brush.verticalGradient(
                                 colors = listOf(
-                                    Color.White.copy(alpha = 0.65f),
-                                    accentColor.copy(alpha = 0.38f),
-                                    Color.White.copy(alpha = 0.22f)
+                                    Color.White.copy(alpha = 0.35f + 0.45f * lensCrystalAlpha),
+                                    Color.White.copy(alpha = 0.10f + 0.25f * lensCrystalAlpha),
+                                    Color.White.copy(alpha = 0.20f + 0.30f * lensCrystalAlpha)
                                 )
                             ),
                             shape = pillShape
                         )
                 )
 
-                // Tab items row + horizontal drag scrubber
+                // Tab items row + horizontal drag scrubbing
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .fillMaxSize()
                         .pointerInput(tabs.size, slotWidthPx) {
                             detectHorizontalDragGestures(
                                 onDragStart = { offset ->
@@ -324,16 +363,11 @@ fun LiquidGlassNavBottomBar(
                     tabs.forEach { (index, label, icon) ->
                         val distance = abs(animatedIndex - index.toFloat())
                         val isActive = distance < 0.5f
-                        val contentColor = if (isActive) {
-                            Color.White
-                        } else {
-                            Color(0xFFB4BAC6)
-                        }
 
                         Column(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(56.dp)
+                                .height(52.dp)
                                 .clip(pillShape)
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
@@ -346,31 +380,75 @@ fun LiquidGlassNavBottomBar(
                                 Icon(
                                     imageVector = icon,
                                     contentDescription = label,
-                                    tint = if (isActive) accentColor.copy(alpha = 0.2f).let { Color.White } else contentColor,
-                                    modifier = Modifier.size(22.dp)
+                                    tint = if (isActive) accentColor else Color(0xFFE5E7EB),
+                                    modifier = Modifier.size(21.dp)
                                 )
                                 if (index == 0 && unreadMessagesCount > 0) {
                                     Box(
                                         modifier = Modifier
-                                            .size(7.dp)
+                                            .size(6.5.dp)
                                             .clip(CircleShape)
                                             .background(Color(0xFFEF4444))
                                             .align(Alignment.TopEnd)
                                     )
                                 }
                             }
-                            Spacer(Modifier.height(3.dp))
+                            Spacer(Modifier.height(2.dp))
                             Text(
                                 text = label,
-                                fontSize = 12.sp,
+                                fontSize = 11.sp,
                                 fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
-                                color = contentColor,
+                                color = if (isActive) Color.White else Color(0xFFD1D5DB),
                                 maxLines = 1
                             )
                         }
                     }
                 }
             }
+        }
+
+        // Right: Separate Circular Crystal Liquid Glass New Message Button
+        Box(
+            modifier = Modifier
+                .size(62.dp)
+                .clip(CircleShape)
+                .hazeChild(
+                    state = hazeState,
+                    style = HazeDefaults.style(
+                        backgroundColor = Color(0x14FFFFFF),
+                        blurRadius = 11.dp,
+                        tint = HazeTint(Color(0x14000000))
+                    )
+                )
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.14f),
+                            Color.White.copy(alpha = 0.04f),
+                            Color.Black.copy(alpha = 0.12f)
+                        )
+                    )
+                )
+                .border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.45f),
+                            Color.White.copy(alpha = 0.14f),
+                            Color.White.copy(alpha = 0.25f)
+                        )
+                    ),
+                    shape = CircleShape
+                )
+                .clickable(onClick = onComposeClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = "New message",
+                tint = Color.White,
+                modifier = Modifier.size(23.dp)
+            )
         }
     }
 }

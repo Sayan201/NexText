@@ -340,18 +340,20 @@ fun InboxScreen(
                 }
             }
 
-            // Floating Action Button (FAB) at bottom-right above the larger floating capsule
-            FloatingActionButton(
-                onClick = onOpenCompose,
-                shape = CircleShape,
-                containerColor = accentColor,
-                contentColor = Color.White,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .navigationBarsPadding()
-                    .padding(end = 18.dp, bottom = if (!useMaterial3Design) 98.dp else 16.dp)
-            ) {
-                Icon(Icons.Default.Edit, contentDescription = "New message")
+            // Standard Material 3 FAB (Pitch Black mode uses the dedicated crystal New Message button beside the bottom capsule)
+            if (useMaterial3Design) {
+                FloatingActionButton(
+                    onClick = onOpenCompose,
+                    shape = CircleShape,
+                    containerColor = accentColor,
+                    contentColor = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .navigationBarsPadding()
+                        .padding(end = 18.dp, bottom = 16.dp)
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = "New message")
+                }
             }
         }
         }

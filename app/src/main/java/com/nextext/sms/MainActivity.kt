@@ -576,6 +576,7 @@ private fun NexTextApp(
                         }
                     }
                 },
+                onComposeClick = { navController.navigate(Routes.composeRoute()) },
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
         }
