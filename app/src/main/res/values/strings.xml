@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">NexText</string>
+    <string name="channel_messages_name">Messages</string>
+    <string name="channel_messages_desc">Personal and important SMS notifications</string>
+    <string name="channel_otp_name">OTP &amp; Verification</string>
+    <string name="channel_otp_desc">One-time password alerts with instant Copy OTP button</string>
+    <string name="channel_transactions_name">Transactions</string>
+    <string name="channel_transactions_desc">Bank, UPI, and card transaction alerts</string>
+    <string name="channel_reminders_name">Reminders &amp; Bills</string>
+    <string name="channel_reminders_desc">Upcoming bill due dates, EMIs, and travel reminders</string>
+</resources>
