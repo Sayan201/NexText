@@ -59,7 +59,7 @@ import com.nextext.sms.ui.screens.ThreadScreen
 import com.nextext.sms.ui.theme.NexTextTheme
 import com.nextext.sms.ui.viewmodel.MainViewModel
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.haze
 
 class MainActivity : ComponentActivity() {
 
@@ -291,7 +291,7 @@ private fun NexTextApp(
                 startDestination = Routes.INBOX,
                 modifier = Modifier
                     .fillMaxSize()
-                    .hazeSource(state = hazeState)
+                    .haze(state = hazeState)
             ) {
             composable(Routes.INBOX) {
                 InboxScreen(

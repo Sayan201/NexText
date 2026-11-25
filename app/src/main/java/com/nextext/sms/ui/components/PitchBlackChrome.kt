@@ -55,7 +55,7 @@ import com.nextext.sms.ui.viewmodel.InboxFilter
 import dev.chrisbanes.haze.HazeDefaults
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeChild
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -222,7 +222,7 @@ fun LiquidGlassNavBottomBar(
                     spotColor = Color.Black
                 )
                 .clip(capsuleShape)
-                .hazeEffect(
+                .hazeChild(
                     state = hazeState,
                     style = HazeDefaults.style(
                         backgroundColor = Color(0x2E0B0D14),
