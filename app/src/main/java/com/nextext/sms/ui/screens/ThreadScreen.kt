@@ -339,7 +339,7 @@ private fun Photo3SendBar(
                         Icon(
                             imageVector = Icons.Default.AttachFile,
                             contentDescription = "Attach",
-                            tint = Color(0xFF7B9FE8),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -352,7 +352,7 @@ private fun Photo3SendBar(
                             Icon(
                                 imageVector = Icons.Default.Schedule,
                                 contentDescription = "Schedule / SIM",
-                                tint = Color(0xFF7B9FE8),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -387,7 +387,7 @@ private fun Photo3SendBar(
                         Text(
                             text = "SIM ${currentSim.slotIndex + 1}",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF7B9FE8),
+                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -401,7 +401,7 @@ private fun Photo3SendBar(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Send,
                         contentDescription = "Send",
-                        tint = if (draft.isNotBlank()) Color.White else Color(0xFF555555),
+                        tint = if (draft.isNotBlank()) MaterialTheme.colorScheme.primary else Color(0xFF555555),
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -424,7 +424,7 @@ private fun Photo4MessageBubble(
     val containerColor = if (message.isIncoming) {
         Color(0xFF16181D)
     } else {
-        Color(0xFF223555) // Deep signature blue for sent messages
+        MaterialTheme.colorScheme.primaryContainer
     }
     val textColor = Color.White
 

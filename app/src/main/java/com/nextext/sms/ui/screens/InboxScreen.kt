@@ -728,7 +728,7 @@ private fun Photo4ThreadListRow(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF3B5998))
+                                .background(MaterialTheme.colorScheme.primary)
                                 .padding(horizontal = 7.dp, vertical = 2.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -861,7 +861,7 @@ private fun OnboardingBanner(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f))
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
@@ -901,7 +901,7 @@ private fun RecentOtpCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF162534))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f))
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -911,7 +911,7 @@ private fun RecentOtpCard(
                 Text(
                     text = message.otpService?.let { "Recent OTP • $it" } ?: "Recent Verification Code",
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color(0xFF8BB8FF)
+                    color = MaterialTheme.colorScheme.primary
                 )
                 Text(
                     text = message.otpCode.orEmpty(),

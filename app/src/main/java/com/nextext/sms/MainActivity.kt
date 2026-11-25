@@ -34,8 +34,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import android.content.ActivityNotFoundException
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -55,6 +58,8 @@ import com.nextext.sms.ui.screens.SmartHubScreen
 import com.nextext.sms.ui.screens.ThreadScreen
 import com.nextext.sms.ui.theme.NexTextTheme
 import com.nextext.sms.ui.viewmodel.MainViewModel
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
 
 class MainActivity : ComponentActivity() {
 
@@ -273,6 +278,8 @@ private fun NexTextApp(
             }
         }
     ) { innerPadding ->
+        val hazeState = remember { HazeState() }
+        val context = LocalContext.current
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -282,7 +289,9 @@ private fun NexTextApp(
             NavHost(
                 navController = navController,
                 startDestination = Routes.INBOX,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .hazeSource(state = hazeState)
             ) {
             composable(Routes.INBOX) {
                 InboxScreen(
@@ -425,6 +434,31 @@ private fun NexTextApp(
                     onImportBackup = {
                         importBackupLauncher.launch(arrayOf("application/json", "*/*"))
                     },
+                    onBackupToGoogleDrive = {
+                        viewModel.prepareDriveBackupFile(context.cacheDir) { file ->
+                            val uri = FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.fileprovider",
+                                file
+                            )
+                            val driveIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "application/json"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                putExtra(Intent.EXTRA_SUBJECT, file.name)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                setPackage("com.google.android.apps.docs")
+                            }
+                            try {
+                                context.startActivity(driveIntent)
+                            } catch (_: ActivityNotFoundException) {
+                                driveIntent.setPackage(null)
+                                context.startActivity(Intent.createChooser(driveIntent, "Back up to Google Drive"))
+                            }
+                        }
+                    },
+                    onRestoreFromGoogleDrive = {
+                        importBackupLauncher.launch(arrayOf("application/json", "*/*"))
+                    },
                     onUnblockSender = viewModel::unblockSender
                 )
             }
@@ -526,6 +560,7 @@ private fun NexTextApp(
                 selectedTab = selectedTab,
                 unreadMessagesCount = unreadCounts.values.sum(),
                 accentColor = MaterialTheme.colorScheme.primary,
+                hazeState = hazeState,
                 onSelectTab = { tab ->
                     val target = when (tab) {
                         0 -> Routes.INBOX

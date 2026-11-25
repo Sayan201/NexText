@@ -1,19 +1,24 @@
 package com.nextext.sms.ui.components
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,23 +29,35 @@ import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nextext.sms.domain.model.MessageCategory
 import com.nextext.sms.ui.viewmodel.InboxFilter
+import dev.chrisbanes.haze.HazeDefaults
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * Ambient top glow for Pitch Black AMOLED mode (defaults to Purple).
@@ -58,7 +75,6 @@ fun TopAmbientGlow(
     ) {
         val width = size.width
         val height = size.height
-        // Soft vertical wash at the top edge
         drawRect(
             brush = Brush.verticalGradient(
                 colors = listOf(
@@ -70,7 +86,6 @@ fun TopAmbientGlow(
                 endY = height
             )
         )
-        // Centered radial spotlight glow behind top app bar
         drawRect(
             brush = Brush.radialGradient(
                 colors = listOf(
@@ -155,14 +170,16 @@ fun TopCategoryFilterTabs(
 }
 
 /**
- * Larger WhatsApp-style floating capsule with Twitter-like liquid glass / acrylic sheen
- * containing the primary destinations: Messages | Reminders | Finance.
+ * Crystal Liquid Glass floating capsule bottom bar with continuous spring-animated
+ * sliding crystal lens indicator (matching Zangetsu / iOS 26 liquid glass style).
+ * Supports both tap-to-glide and continuous horizontal drag scrubbing.
  */
 @Composable
 fun LiquidGlassNavBottomBar(
     selectedTab: Int,
     unreadMessagesCount: Int,
     accentColor: Color,
+    hazeState: HazeState,
     onSelectTab: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -172,6 +189,22 @@ fun LiquidGlassNavBottomBar(
         Triple(2, "Finance", Icons.Default.CreditCard)
     )
 
+    val capsuleShape = RoundedCornerShape(38.dp)
+    val pillShape = RoundedCornerShape(30.dp)
+    val density = LocalDensity.current
+
+    var isDragging by remember { mutableStateOf(false) }
+    var dragIndex by remember { mutableFloatStateOf(selectedTab.toFloat()) }
+
+    val animatedIndex by animateFloatAsState(
+        targetValue = if (isDragging) dragIndex else selectedTab.toFloat(),
+        animationSpec = spring(
+            dampingRatio = 0.74f,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "crystalPillSlide"
+    )
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -179,120 +212,161 @@ fun LiquidGlassNavBottomBar(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {
-        Surface(
-            shape = RoundedCornerShape(36.dp),
-            color = Color.Transparent,
-            border = BorderStroke(
-                width = 1.25.dp,
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.50f),
-                        accentColor.copy(alpha = 0.35f),
-                        Color.White.copy(alpha = 0.14f)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(
+                    elevation = 24.dp,
+                    shape = capsuleShape,
+                    ambientColor = accentColor.copy(alpha = 0.35f),
+                    spotColor = Color.Black
+                )
+                .clip(capsuleShape)
+                .hazeEffect(
+                    state = hazeState,
+                    style = HazeDefaults.style(
+                        backgroundColor = Color(0x2E0B0D14),
+                        blurRadius = 26.dp,
+                        tint = HazeTint(Color(0x380A0C12))
                     )
                 )
-            ),
-            shadowElevation = 22.dp,
-            modifier = Modifier.fillMaxWidth()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.14f),
+                            Color(0x280E1018),
+                            Color(0x4006070B)
+                        )
+                    )
+                )
+                .border(
+                    width = 1.25.dp,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.58f),
+                            accentColor.copy(alpha = 0.30f),
+                            Color.White.copy(alpha = 0.16f)
+                        )
+                    ),
+                    shape = capsuleShape
+                )
         ) {
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color(0xBA1A1D28),
-                                Color(0xCC0D0F16),
-                                Color(0xDB08090E)
-                            )
-                        )
-                    )
-                    .background(
-                        Brush.horizontalGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.06f),
-                                accentColor.copy(alpha = 0.10f),
-                                Color.White.copy(alpha = 0.04f)
-                            )
-                        )
-                    )
-                    .padding(horizontal = 8.dp, vertical = 7.dp)
+                    .padding(horizontal = 6.dp, vertical = 6.dp)
             ) {
+                val slotWidth = maxWidth / tabs.size
+                val slotWidthPx = with(density) { slotWidth.toPx() }
+
+                // Continuous sliding crystal lens indicator
+                Box(
+                    modifier = Modifier
+                        .offset {
+                            IntOffset(
+                                x = (animatedIndex * slotWidthPx).roundToInt(),
+                                y = 0
+                            )
+                        }
+                        .width(slotWidth)
+                        .height(56.dp)
+                        .clip(pillShape)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.22f),
+                                    accentColor.copy(alpha = 0.24f),
+                                    Color.White.copy(alpha = 0.08f)
+                                )
+                            )
+                        )
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.65f),
+                                    accentColor.copy(alpha = 0.38f),
+                                    Color.White.copy(alpha = 0.22f)
+                                )
+                            ),
+                            shape = pillShape
+                        )
+                )
+
+                // Tab items row + horizontal drag scrubber
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .pointerInput(tabs.size, slotWidthPx) {
+                            detectHorizontalDragGestures(
+                                onDragStart = { offset ->
+                                    isDragging = true
+                                    dragIndex = ((offset.x / slotWidthPx) - 0.5f)
+                                        .coerceIn(0f, (tabs.size - 1).toFloat())
+                                },
+                                onHorizontalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    dragIndex = (dragIndex + dragAmount / slotWidthPx)
+                                        .coerceIn(0f, (tabs.size - 1).toFloat())
+                                },
+                                onDragEnd = {
+                                    val target = dragIndex.roundToInt().coerceIn(0, tabs.size - 1)
+                                    isDragging = false
+                                    onSelectTab(target)
+                                },
+                                onDragCancel = {
+                                    isDragging = false
+                                }
+                            )
+                        },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     tabs.forEach { (index, label, icon) ->
-                        val isSelected = selectedTab == index
-                        val pillShape = RoundedCornerShape(28.dp)
+                        val distance = abs(animatedIndex - index.toFloat())
+                        val isActive = distance < 0.5f
+                        val contentColor = if (isActive) {
+                            Color.White
+                        } else {
+                            Color(0xFFB4BAC6)
+                        }
 
-                        Box(
+                        Column(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(54.dp)
+                                .height(56.dp)
                                 .clip(pillShape)
-                                .then(
-                                    if (isSelected) {
-                                        Modifier
-                                            .background(
-                                                Brush.verticalGradient(
-                                                    colors = listOf(
-                                                        accentColor.copy(alpha = 0.36f),
-                                                        accentColor.copy(alpha = 0.16f)
-                                                    )
-                                                )
-                                            )
-                                            .border(
-                                                width = 0.85.dp,
-                                                brush = Brush.verticalGradient(
-                                                    colors = listOf(
-                                                        Color.White.copy(alpha = 0.35f),
-                                                        accentColor.copy(alpha = 0.25f)
-                                                    )
-                                                ),
-                                                shape = pillShape
-                                            )
-                                    } else {
-                                        Modifier
-                                    }
-                                )
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null
                                 ) { onSelectTab(index) },
-                            contentAlignment = Alignment.Center
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
                         ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Box {
-                                    Icon(
-                                        imageVector = icon,
-                                        contentDescription = label,
-                                        tint = if (isSelected) Color.White else Color(0xFFA1A7B3),
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                    if (index == 0 && unreadMessagesCount > 0) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(7.dp)
-                                                .clip(CircleShape)
-                                                .background(Color(0xFFEF4444))
-                                                .align(Alignment.TopEnd)
-                                        )
-                                    }
-                                }
-                                Spacer(Modifier.height(3.dp))
-                                Text(
-                                    text = label,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) Color.White else Color(0xFFA1A7B3),
-                                    maxLines = 1
+                            Box {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = label,
+                                    tint = if (isActive) accentColor.copy(alpha = 0.2f).let { Color.White } else contentColor,
+                                    modifier = Modifier.size(22.dp)
                                 )
+                                if (index == 0 && unreadMessagesCount > 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(7.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFFEF4444))
+                                            .align(Alignment.TopEnd)
+                                    )
+                                }
                             }
+                            Spacer(Modifier.height(3.dp))
+                            Text(
+                                text = label,
+                                fontSize = 12.sp,
+                                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
+                                color = contentColor,
+                                maxLines = 1
+                            )
                         }
                     }
                 }

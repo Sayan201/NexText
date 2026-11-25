@@ -67,6 +67,8 @@ fun SettingsScreen(
     onCleanOldOtpsNow: () -> Unit,
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
+    onBackupToGoogleDrive: () -> Unit = {},
+    onRestoreFromGoogleDrive: () -> Unit = {},
     onUnblockSender: (String) -> Unit
 ) {
     Scaffold(
@@ -261,8 +263,27 @@ fun SettingsScreen(
                         )
                         Spacer(Modifier.height(10.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Button(onClick = onExportBackup) { Text("Export Backup") }
-                            OutlinedButton(onClick = onImportBackup) { Text("Restore Backup") }
+                            Button(onClick = onExportBackup) { Text("Export Local") }
+                            OutlinedButton(onClick = onImportBackup) { Text("Restore Local") }
+                        }
+                    }
+                }
+            }
+
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Text("Google Drive Backup", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Save a full message backup directly to your Google Drive account or restore an existing Drive backup.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Button(onClick = onBackupToGoogleDrive) { Text("Back up to Drive") }
+                            OutlinedButton(onClick = onRestoreFromGoogleDrive) { Text("Restore from Drive") }
                         }
                     }
                 }

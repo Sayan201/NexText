@@ -391,6 +391,16 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
+    fun prepareDriveBackupFile(cacheDir: java.io.File, onReady: (java.io.File) -> Unit) {
+        viewModelScope.launch {
+            val backupDir = java.io.File(cacheDir, "backups").apply { mkdirs() }
+            val file = java.io.File(backupDir, "nextext-backup-${System.currentTimeMillis()}.json")
+            backupManager.exportToUri(Uri.fromFile(file))
+                .onSuccess { onReady(file) }
+                .onFailure { err -> _snackbarMessage.value = "Drive backup failed: ${err.localizedMessage}" }
+        }
+    }
+
     fun showMessage(msg: String) {
         _snackbarMessage.value = msg
     }
