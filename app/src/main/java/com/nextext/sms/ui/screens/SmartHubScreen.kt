@@ -62,7 +62,6 @@ import com.nextext.sms.data.local.ReminderEntity
 import com.nextext.sms.data.local.TransitOrderEntity
 import com.nextext.sms.domain.model.ReminderKind
 import com.nextext.sms.domain.model.TransitOrderKind
-import com.nextext.sms.ui.components.SmsOrganizerTopTabs
 import com.nextext.sms.ui.util.Formatters
 
 @OptIn(ExperimentalMaterial3Api::class)
