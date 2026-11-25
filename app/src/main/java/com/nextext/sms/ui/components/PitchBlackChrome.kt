@@ -37,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,7 +63,7 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
- * Ambient top glow for Pitch Black AMOLED mode (defaults to Purple).
+ * Ambient top glow for Pitch Black AMOLED mode (defaults to Cyan).
  * Renders a smooth radial + vertical glow at the top of the screen that fades into #000000.
  */
 @Composable
@@ -172,10 +173,11 @@ fun TopCategoryFilterTabs(
 }
 
 /**
- * Zangetsu-style crystal clear liquid glass bottom bar:
- * - Left: Crystal clear frosted capsule with continuous spring-sliding lens that expands
- *   outward beyond the capsule edges while switching or dragging.
- * - Right: Separate circular crystal liquid glass New Message button.
+ * Zangetsu-style crystal clear 3D liquid glass bottom capsule:
+ * - Left: Crystal frosted glass capsule with a 3D convex liquid-glass lens indicator
+ *   (specular top/bottom bevel, inner caustic highlight, and Haze backdrop refraction)
+ *   that expands outward while switching/dragging and glides continuously across tabs.
+ * - Right: Separate circular 3D crystal liquid-glass New Message button.
  */
 @Composable
 fun LiquidGlassNavBottomBar(
@@ -194,8 +196,12 @@ fun LiquidGlassNavBottomBar(
     )
 
     val capsuleShape = RoundedCornerShape(34.dp)
-    val pillShape = RoundedCornerShape(28.dp)
+    val pillShape = RoundedCornerShape(30.dp)
     val density = LocalDensity.current
+
+    // Keep latest callbacks/state inside pointerInput so sliding back from Finance/Reminders always works
+    val currentOnSelectTab by rememberUpdatedState(onSelectTab)
+    val currentSelectedTab by rememberUpdatedState(selectedTab)
 
     var isDragging by remember { mutableStateOf(false) }
     var dragIndex by remember { mutableFloatStateOf(selectedTab.toFloat()) }
@@ -250,7 +256,7 @@ fun LiquidGlassNavBottomBar(
                 .weight(1f)
                 .height(62.dp)
         ) {
-            // Crystal frosted glass background (clipped to capsuleShape so outer Box remains unclipped for lens bulge)
+            // 1. Crystal frosted glass capsule background
             Box(
                 modifier = Modifier
                     .matchParentSize()
@@ -266,9 +272,9 @@ fun LiquidGlassNavBottomBar(
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.12f),
+                                Color.White.copy(alpha = 0.14f),
                                 Color.White.copy(alpha = 0.03f),
-                                Color.Black.copy(alpha = 0.12f)
+                                Color.Black.copy(alpha = 0.18f)
                             )
                         )
                     )
@@ -276,16 +282,16 @@ fun LiquidGlassNavBottomBar(
                         width = 1.dp,
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.42f),
-                                Color.White.copy(alpha = 0.14f),
-                                Color.White.copy(alpha = 0.24f)
+                                Color.White.copy(alpha = 0.45f),
+                                Color.White.copy(alpha = 0.12f),
+                                Color.White.copy(alpha = 0.28f)
                             )
                         ),
                         shape = capsuleShape
                     )
             )
 
-            // Unclipped foreground layer for continuous expanding liquid glass lens & tab items
+            // 2. Unclipped foreground layer for 3D expanding liquid glass droplet & tab items
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
@@ -294,7 +300,7 @@ fun LiquidGlassNavBottomBar(
                 val slotWidth = maxWidth / tabs.size
                 val slotWidthPx = with(density) { slotWidth.toPx() }
 
-                // Expanding crystal lens indicator
+                // 3D Convex Crystal Glass Lens Indicator (matches close-up reference photo)
                 Box(
                     modifier = Modifier
                         .offset {
@@ -310,29 +316,53 @@ fun LiquidGlassNavBottomBar(
                             scaleY = lensScaleY
                         }
                         .clip(pillShape)
+                        .hazeChild(
+                            state = hazeState,
+                            style = HazeDefaults.style(
+                                backgroundColor = Color(0x20000000),
+                                blurRadius = 14.dp,
+                                tint = HazeTint(Color(0x30000000))
+                            )
+                        )
+                        // Base dark-crystal refractive body
                         .background(
                             Brush.verticalGradient(
                                 colors = listOf(
-                                    Color.White.copy(alpha = 0.10f + 0.14f * lensCrystalAlpha),
-                                    accentColor.copy(alpha = 0.24f * (1f - 0.55f * lensCrystalAlpha)),
-                                    Color.White.copy(alpha = 0.05f + 0.08f * lensCrystalAlpha)
+                                    Color.White.copy(alpha = 0.24f * lensCrystalAlpha + 0.08f),
+                                    Color(0x5506080D),
+                                    accentColor.copy(alpha = 0.22f * (1f - 0.4f * lensCrystalAlpha)),
+                                    Color(0x6605060A),
+                                    Color.White.copy(alpha = 0.16f * lensCrystalAlpha + 0.04f)
                                 )
                             )
                         )
+                        // Top-right caustic glass glow (like the cyan/teal reflection in the photo)
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    accentColor.copy(alpha = 0.30f * lensCrystalAlpha + 0.10f),
+                                    Color.Transparent
+                                ),
+                                center = Offset(slotWidthPx * 0.78f, 18f),
+                                radius = slotWidthPx * 0.75f
+                            )
+                        )
+                        // 3D Convex Bevel Rim (bright white top & bottom highlights, subtle sides)
                         .border(
-                            width = (0.85f + 0.5f * lensCrystalAlpha).dp,
+                            width = (1.0f + 0.6f * lensCrystalAlpha).dp,
                             brush = Brush.verticalGradient(
                                 colors = listOf(
-                                    Color.White.copy(alpha = 0.35f + 0.45f * lensCrystalAlpha),
-                                    Color.White.copy(alpha = 0.10f + 0.25f * lensCrystalAlpha),
-                                    Color.White.copy(alpha = 0.20f + 0.30f * lensCrystalAlpha)
+                                    Color.White.copy(alpha = 0.42f + 0.48f * lensCrystalAlpha),
+                                    Color.White.copy(alpha = 0.14f + 0.12f * lensCrystalAlpha),
+                                    Color.White.copy(alpha = 0.08f),
+                                    Color.White.copy(alpha = 0.30f + 0.42f * lensCrystalAlpha)
                                 )
                             ),
                             shape = pillShape
                         )
                 )
 
-                // Tab items row + horizontal drag scrubbing
+                // Tab items row + bidirectional continuous horizontal drag scrubbing
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
@@ -351,7 +381,9 @@ fun LiquidGlassNavBottomBar(
                                 onDragEnd = {
                                     val target = dragIndex.roundToInt().coerceIn(0, tabs.size - 1)
                                     isDragging = false
-                                    onSelectTab(target)
+                                    if (target != currentSelectedTab) {
+                                        currentOnSelectTab(target)
+                                    }
                                 },
                                 onDragCancel = {
                                     isDragging = false
@@ -407,7 +439,7 @@ fun LiquidGlassNavBottomBar(
             }
         }
 
-        // Right: Separate Circular Crystal Liquid Glass New Message Button
+        // Right: Separate Circular 3D Crystal Liquid-Glass New Message Button (matches photo)
         Box(
             modifier = Modifier
                 .size(62.dp)
@@ -415,27 +447,38 @@ fun LiquidGlassNavBottomBar(
                 .hazeChild(
                     state = hazeState,
                     style = HazeDefaults.style(
-                        backgroundColor = Color(0x14FFFFFF),
-                        blurRadius = 11.dp,
-                        tint = HazeTint(Color(0x14000000))
+                        backgroundColor = Color(0x20000000),
+                        blurRadius = 12.dp,
+                        tint = HazeTint(Color(0x30000000))
                     )
                 )
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color.White.copy(alpha = 0.14f),
-                            Color.White.copy(alpha = 0.04f),
-                            Color.Black.copy(alpha = 0.12f)
+                            Color.White.copy(alpha = 0.18f),
+                            Color(0x6605070B),
+                            Color(0x88020305),
+                            Color.White.copy(alpha = 0.08f)
                         )
                     )
                 )
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            accentColor.copy(alpha = 0.22f),
+                            Color.Transparent
+                        ),
+                        center = Offset(44f, 16f),
+                        radius = 52f
+                    )
+                )
                 .border(
-                    width = 1.dp,
+                    width = 1.1.dp,
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            Color.White.copy(alpha = 0.45f),
+                            Color.White.copy(alpha = 0.58f),
                             Color.White.copy(alpha = 0.14f),
-                            Color.White.copy(alpha = 0.25f)
+                            Color.White.copy(alpha = 0.34f)
                         )
                     ),
                     shape = CircleShape

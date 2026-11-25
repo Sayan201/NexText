@@ -18,6 +18,8 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
@@ -44,6 +46,7 @@ import androidx.compose.runtime.remember
 import android.content.ActivityNotFoundException
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -481,15 +484,17 @@ private fun NexTextApp(
                     navArgument("body") { type = NavType.StringType; defaultValue = "" }
                 ),
                 enterTransition = {
-                    slideInVertically(
-                        animationSpec = tween(260, easing = FastOutSlowInEasing),
-                        initialOffsetY = { it / 6 }
-                    ) + fadeIn(tween(240, easing = FastOutSlowInEasing))
+                    scaleIn(
+                        animationSpec = tween(320, easing = FastOutSlowInEasing),
+                        initialScale = 0.08f,
+                        transformOrigin = TransformOrigin(0.90f, 0.92f)
+                    ) + fadeIn(tween(220, easing = FastOutSlowInEasing))
                 },
                 popExitTransition = {
-                    slideOutVertically(
-                        animationSpec = tween(220, easing = FastOutSlowInEasing),
-                        targetOffsetY = { it / 6 }
+                    scaleOut(
+                        animationSpec = tween(260, easing = FastOutSlowInEasing),
+                        targetScale = 0.08f,
+                        transformOrigin = TransformOrigin(0.90f, 0.92f)
                     ) + fadeOut(tween(200, easing = FastOutSlowInEasing))
                 }
             ) { entry ->
@@ -596,7 +601,7 @@ private fun NexTextApp(
                         2 -> Routes.FINANCE
                         else -> Routes.INBOX
                     }
-                    if (currentRoute != target) {
+                    if (navController.currentDestination?.route != target) {
                         navController.navigate(target) {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                             launchSingleTop = true
