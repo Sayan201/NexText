@@ -4,7 +4,7 @@
 
 ### A privacy-first SMS organizer that reads your messages like a person would — on your phone, never on a server
 
-<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=21&pause=1200&color=06B6D4&center=true&vCenter=true&width=640&lines=Sorts+every+SMS+into+Personal%2C+Transactions%2C+Promos%2C+Spam;Pulls+OTPs+out+with+a+one-tap+copy;Turns+bank+SMS+into+a+live+passbook;Finds+bills%2C+EMIs%2C+PNRs+and+deliveries;Backs+up+to+Drive+with+zero+network+permissions" alt="Typing SVG" />
+<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=21&pause=1200&color=06B6D4&center=true&vCenter=true&width=660&lines=Sorts+every+SMS+into+Personal%2C+Transactions%2C+Promos%2C+Spam;Pulls+OTPs+out+with+a+one-tap+copy;Turns+bank+SMS+into+a+live+passbook;Finds+bills%2C+EMIs%2CPNRs+and+deliveries;Updates+itself+straight+from+GitHub+Releases" alt="Typing SVG" />
 
 <br/>
 
@@ -20,7 +20,8 @@
 ![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)
-![No Internet](https://img.shields.io/badge/INTERNET%20permission-none-06B6D4?style=for-the-badge&logo=shield&logoColor=white)
+![No accounts](https://img.shields.io/badge/accounts-none-06B6D4?style=for-the-badge&logo=shield&logoColor=white)
+![No analytics](https://img.shields.io/badge/analytics-none-06B6D4?style=for-the-badge&logo=datadog&logoColor=white)
 
 <br/>
 
@@ -38,6 +39,7 @@
   <a href="#-overview"><b>Overview</b></a> ·
   <a href="#-screenshots"><b>Screenshots</b></a> ·
   <a href="#-features"><b>Features</b></a> ·
+  <a href="#-privacy--network"><b>Privacy</b></a> ·
   <a href="#-google-drive-backup"><b>Drive Backup</b></a> ·
   <a href="#-download"><b>Download</b></a> ·
   <a href="#-tech-stack"><b>Tech Stack</b></a> ·
@@ -55,10 +57,10 @@
 
 Banks send you a debit. NexText logs it in a passbook. A courier texts a tracking number. NexText files it under trips and deliveries. A bank reminds you about a card bill. NexText puts it in reminders with the amount and due date. An OTP arrives. NexText lifts the code out and hands you a copy button before you even open the thread.
 
-All of it happens **on the device**. No account, no sync server, no analytics, no `INTERNET` permission.
+Every message is parsed **on the device**. There is no account, no sync server, no analytics SDK, and no crash reporter. The only network request the app makes is a version check against GitHub Releases — the same request that lets it update itself without a store.
 
 > [!NOTE]
-> **Your messages never leave your phone.** Categorization, OTP extraction, transaction parsing, reminders and search are local Kotlin — no network call, no cloud model.
+> **Your messages never leave your phone.** Categorization, OTP extraction, transaction parsing, reminders and search are local Kotlin. The update check sends no message content, no identifiers and no telemetry — it is a `GET` for a public release tag.
 
 <div align="center">
 
@@ -101,16 +103,16 @@ All of it happens **on the device**. No account, no sync server, no analytics, n
 <td align="center">
 <img src="docs/screenshots/05-settings.jpg" width="205" alt="Settings"/>
 <br/><b>⚙️ Settings</b>
-<br/><sub>Theme, rules, swipe actions, updates</sub>
+<br/><sub>Theme, rules, updates, version</sub>
 </td>
 <td align="center" valign="middle">
 <br/>
-<b>One app.</b><br/>
-<b>Zero servers.</b>
+<b>No account.</b><br/>
+<b>No analytics.</b>
 <br/><br/>
-<a href="app/src/main/AndroidManifest.xml"><img src="https://img.shields.io/badge/android.permission.INTERNET-not%20declared-06B6D4?style=flat-square&labelColor=0A0F12" alt="No INTERNET permission"/></a>
+<a href="app/src/main/java/com/nextext/sms/update/AppUpdater.kt"><img src="https://img.shields.io/badge/network-update%20check%20only-06B6D4?style=flat-square&labelColor=0A0F12" alt="Network used only for update checks"/></a>
 <br/>
-<sub>verified in the manifest</sub>
+<sub>the whole network layer, in one file</sub>
 </td>
 </tr>
 </table>
@@ -172,22 +174,81 @@ NexText reads the numbers out of bank SMS and builds a live picture of your mone
 
 Bills, EMIs, recharges, IRCTC PNRs, flight bookings and courier updates are extracted automatically and split into **Bills & Reminders** and **Trips & Orders**, with due dates, amounts and notifications. Anything the parser misses, you can add by hand.
 
+### 🔄 Updates without a store
+
+NexText updates itself from GitHub Releases:
+
+- On launch it asks GitHub for the latest release tag (silent, 8-second timeout, fails quietly offline)
+- If the tag is newer than the installed version, a flyout shows the release notes and a download button
+- The APK downloads to cache with a progress bar, then hands off to Android's package installer
+- If **Install unknown apps** isn't granted for NexText, the app opens that settings screen first
+- **Don't show again** dismisses that specific version — an **Update** capsule stays in the inbox header until you take it
+
+No store review queue, no staged rollout, no waiting. [Full network details below](#-privacy--network).
+
 ### 🎨 Liquid Glass design
 
 - Translucent floating bottom capsule with **real refraction** — AGSL shaders and `GraphicsLayer` backdrop sampling, not a blur overlay
 - Spring-driven droplet tab transitions and outward glass magnification on touch
 - **Pitch Black** OLED theme, optional **Material 3** mode, cyan default accent plus custom accents
-- **Swap menu bar positions** to flip top and bottom navigation
+- **Swap menu bar positions**, plus Glass navigation bar size and style customisation
 
 ### ☁️ Backup that behaves
 
-One file in your Google Drive, overwritten on a schedule. No timestamped pile, no manual cleanup, no `INTERNET` permission. [Full details below](#-google-drive-backup).
+One file in your Google Drive, overwritten on a schedule. No timestamped pile, no manual cleanup. [Full details below](#-google-drive-backup).
+
+---
+
+## 🔐 Privacy & network
+
+NexText is not "offline" any more — it updates itself from GitHub. So here is the exact list of everything that touches the network, with no marketing gloss.
+
+### What stays on the device
+
+| Data | Where it lives |
+|---|---|
+| Every SMS and MMS body | Android's SMS database + NexText's Room database, on the phone |
+| Sender names, categories, overrides, blocklists | Room database, on the phone |
+| Extracted OTPs, transactions, balances, reminders | Room database, on the phone |
+| Search index | SQLite FTS4, on the phone |
+| Preferences, linked Drive folder URI | DataStore, on the phone |
+
+Nothing in that table is uploaded. There is no account to sign into, no device ID, no advertising ID, and no analytics or crash-reporting dependency in the build.
+
+### Every network request the app can make
+
+| Request | When | What it carries |
+|---|---|---|
+| `GET https://api.github.com/repos/Sayan201/NexText/releases/latest` | App launch, and when you tap **Check for updates** | Nothing but the HTTP request itself. No version, no device info, no ID. GitHub sees your IP and the `NexText-Android` user agent, like any web request. |
+| `GET` on the release APK URL | Only when you tap **Download & install** | Same — an anonymous download of a public file |
+| Drive document write | On the backup schedule | **Not NexText's network code.** The bytes go to a folder through Android's Storage Access Framework and the Google Drive app performs the upload |
+
+That is the complete list. If you block `api.github.com` at the DNS or firewall level, the app still works exactly as before — the launch check fails silently and manual checks report "could not check for updates".
+
+### What the update check does not do
+
+- It does not send your version, your messages, your contacts, or any identifier
+- It does not run in the background — no WorkManager job, no periodic ping. It fires when the app opens and when you ask
+- It does not download anything until you press the button
+- It cannot install a build signed with a different key: Android's package installer rejects signature mismatches, so a tampered APK fails at install time
+
+### Permissions, in plain language
+
+| Permission | Why |
+|---|---|
+| `READ_SMS`, `WRITE_SMS`, `SEND_SMS`, `RECEIVE_SMS`, `RECEIVE_MMS`, `RECEIVE_WAP_PUSH` | Being a default SMS app — reading, sending, receiving, MMS |
+| `READ_CONTACTS` | Names on threads and the compose screen |
+| `READ_PHONE_STATE` | Dual-SIM detection |
+| `POST_NOTIFICATIONS`, `VIBRATE` | Message, OTP and reminder notifications |
+| `RECEIVE_BOOT_COMPLETED` | Reschedule reminders and the backup worker after a reboot |
+| `INTERNET` | The GitHub update check and APK download — nothing else |
+| `REQUEST_INSTALL_PACKAGES` | Handing a downloaded update to the package installer |
 
 ---
 
 ## ☁️ Google Drive Backup
 
-NexText writes its backup through Android's **Storage Access Framework**, not the Google Drive REST API. The Google Drive app performs the upload, so this app never opens a socket — and never needs a Cloud project, an OAuth client, or an API key.
+NexText writes its backup through Android's **Storage Access Framework**, not the Google Drive REST API. The Google Drive app performs the upload, so NexText needs no OAuth client, no Cloud project and no API key.
 
 ### How it works
 
@@ -221,7 +282,7 @@ NexText writes its backup through Android's **Storage Access Framework**, not th
 | Account signed out / offline | WorkManager retries with exponential backoff; the link is kept. |
 | Folder deleted | The next run recreates the document if the grant survives, otherwise the link is dropped. |
 
-### Why this needs no `INTERNET` permission
+### Why the Drive path needs no network code
 
 The Drive app holds the network access and the OAuth session. NexText only writes a document through a `ContentProvider` — the same mechanism used to save to a local file. The trade-off is that the backup file is visible in your Drive, and there is no programmatic account picker or hidden app-data folder (those require the Drive REST API with `drive.appdata`).
 
@@ -241,9 +302,9 @@ Get the latest build from the **[Releases page](https://github.com/Sayan201/NexT
 </div>
 
 > [!TIP]
-> NexText checks GitHub Releases for new versions from **`Settings → Check for updates`**.
+> Install once from the APK, and every later version arrives in-app: **Settings → Check for updates**, or the **Update** capsule in the inbox header.
 >
-> Requires **Android 8.0 (API 26)** or newer. Set NexText as your default SMS app to receive and send messages.
+> Requires **Android 8.0 (API 26)** or newer. Set NexText as your default SMS app to receive and send messages. Updates install over the top and keep your data — Android only accepts them because every release is signed with the same key.
 
 ---
 
@@ -262,6 +323,8 @@ Get the latest build from the **[Releases page](https://github.com/Sayan201/NexT
 | **Database** | Room + SQLite **FTS4** full-text search |
 | **Background work** | WorkManager (reminders, OTP cleanup, Drive backup) |
 | **Preferences** | Jetpack DataStore |
+| **Networking** | `HttpURLConnection` + `org.json` — no HTTP client dependency, ~180 lines in `update/AppUpdater.kt` |
+| **Updates** | GitHub Releases API → APK download → `FileProvider` → Android package installer |
 | **CI/CD** | GitHub Actions — tests, debug APK, signed release APK, automatic GitHub Release on tag |
 
 </div>
@@ -272,7 +335,7 @@ Get the latest build from the **[Releases page](https://github.com/Sayan201/NexT
 
 ### GitHub Actions (recommended)
 
-Every push to `main` runs `testDebugUnitTest` and builds the debug APK. Pushing a version tag (e.g. `v1.2.0`) also builds the **signed release APK** and publishes a GitHub Release automatically.
+Every push to `main` runs `testDebugUnitTest` and builds the debug APK. Pushing a version tag (e.g. `v1.3.0`) also builds the **signed release APK** and publishes a GitHub Release automatically — which is exactly what the in-app updater looks for.
 
 ### Local Gradle
 
@@ -290,6 +353,9 @@ export KEY_PASSWORD=...
 gradle assembleRelease
 ```
 
+> [!IMPORTANT]
+> The updater downloads the asset named `app-release.apk`. Keep that filename in the workflow, and keep every release signed with the same keystore — otherwise installed copies will refuse the update.
+
 ---
 
 ## ❓ FAQ
@@ -297,11 +363,41 @@ gradle assembleRelease
 <details>
 <summary><b>Does NexText send my messages anywhere?</b></summary>
 <br/>
-No. The app does not declare <code>android.permission.INTERNET</code>. Categorization, OTP extraction, transaction parsing, reminders and search all run locally. The only thing that ever leaves the device is the backup file — and that is written through the Drive app, which you control.
+No. Messages are parsed on the device and stored in a local database. The only network request the app makes is a version check against GitHub Releases, and it carries no message content, no device identifiers and no telemetry.
 </details>
 
 <details>
-<summary><b>How does Drive backup work without internet permission?</b></summary>
+<summary><b>Why does it need the INTERNET permission now?</b></summary>
+<br/>
+So it can update itself from GitHub instead of waiting on a store. That permission is used by one file — <code>update/AppUpdater.kt</code> — to fetch the latest release tag and, if you tap the button, the APK. Nothing else in the app opens a connection.
+</details>
+
+<details>
+<summary><b>What exactly does the update check send?</b></summary>
+<br/>
+A plain <code>GET</code> to <code>api.github.com/repos/Sayan201/NexText/releases/latest</code>. No version, no ID, no payload. GitHub sees the request, your IP and the <code>NexText-Android</code> user agent, the same as any browser hitting a public page.
+</details>
+
+<details>
+<summary><b>Can I stop it from checking?</b></summary>
+<br/>
+Block <code>api.github.com</code> with a DNS filter or firewall. The launch check fails silently and everything else works normally; manual checks will report that they couldn't reach GitHub.
+</details>
+
+<details>
+<summary><b>How do updates install?</b></summary>
+<br/>
+The APK downloads into the app cache, then Android's package installer takes over. The first time, you'll be asked to allow <b>Install unknown apps</b> for NexText. Android verifies the signature against the installed copy, so an update signed with a different key is rejected.
+</details>
+
+<details>
+<summary><b>Will an update wipe my messages or settings?</b></summary>
+<br/>
+No. It's an in-place upgrade of the same package, signed with the same key. The database, preferences and Drive folder link survive.
+</details>
+
+<details>
+<summary><b>How does Drive backup work without OAuth?</b></summary>
 <br/>
 NexText writes a document into a folder you pick with the system folder chooser. The Google Drive app owns the network call and the account session. NexText only hands it bytes through a <code>ContentProvider</code> — the same path used to save a file locally.
 </details>
@@ -333,7 +429,7 @@ The folder grant stops resolving. NexText clears the link and shows <b>Choose Dr
 <details>
 <summary><b>Can I use NexText without Google at all?</b></summary>
 <br/>
-Yes. Leave Drive unlinked and use <b>Export Local</b> / <b>Restore Local</b> with any document provider, or no backup at all — everything else in the app is fully local.
+Yes. Leave Drive unlinked and use <b>Export Local</b> / <b>Restore Local</b> with any document provider, or no backup at all. Updates still come from GitHub, which you can block or ignore.
 </details>
 
 <details>
@@ -348,13 +444,13 @@ Yes — MIT licensed, source included. See <a href="LICENSE">LICENSE</a>.
 
 Full history in **[CHANGELOG.md](CHANGELOG.md)**.
 
-**Latest — v1.2.0**
+**Latest — v1.3.0**
 
-- ☁️ Persistent Google Drive folder — pick once, back up forever
-- 🔁 Automatic Daily / Weekly / Monthly upload, overwriting a single file
-- 🧹 Legacy local snapshots removed on first run
-- 🛠 `BackupManager` now exports/imports straight from memory
-- 🔐 Still zero `INTERNET` permission, still no OAuth client
+- 🔄 In-app update checker against GitHub Releases, with release notes in a flyout
+- ⬇️ APK download with progress, then hand-off to Android's package installer
+- 🟡 **Update** capsule in the inbox header when a version is dismissed but still available
+- 🔐 Network story rewritten: `INTERNET` is declared, used only by `update/AppUpdater.kt`
+- 🧩 Settings copy and About text now state exactly what the network is for
 
 ---
 

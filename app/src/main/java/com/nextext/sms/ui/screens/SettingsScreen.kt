@@ -197,7 +197,7 @@ fun SettingsScreen(
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                "100% On-Device Privacy • No INTERNET permission",
+                                "100% on-device SMS processing • Network only for update checks",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = subTextColor
                             )
@@ -674,7 +674,7 @@ fun SettingsScreen(
             title = { Text("About NexText") },
             text = {
                 Text(
-                    "NexText is a 100% on-device smart SMS organizer with Pitch Black AMOLED & Liquid Glass styling, automatic OTP detection, Finance passbook tracking, and Reminders—with zero INTERNET permission."
+                    "NexText is a 100% on-device smart SMS organizer with Pitch Black AMOLED & Liquid Glass styling, automatic OTP detection, Finance passbook tracking, and Reminders. Your messages are parsed on your phone. The only network request the app makes is an update check against GitHub Releases — it carries no message data, no identifiers, and no analytics."
                 )
             },
             confirmButton = {

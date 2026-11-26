@@ -2,7 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Telephony & SMS Permissions (100% On-Device — No INTERNET permission) -->
+    <!-- Telephony & SMS permissions. Every message is processed on-device.
+         INTERNET is used for one thing: checking GitHub Releases for app updates. -->
     <uses-feature
         android:name="android.hardware.telephony"
         android:required="false" />

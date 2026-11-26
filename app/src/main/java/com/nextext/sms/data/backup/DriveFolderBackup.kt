@@ -7,8 +7,8 @@ import java.io.FileNotFoundException
 
 /**
  * Writes a single JSON document into a user-picked Drive folder through the
- * Storage Access Framework. The Google Drive app owns the network sync, so the
- * app itself never needs INTERNET or an OAuth client.
+ * Storage Access Framework. The Google Drive app owns the network sync, so this
+ * path needs no OAuth client and no network code of its own.
  */
 object DriveFolderBackup {
     const val FILE_NAME = "nextext-backup.json"
