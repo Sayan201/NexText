@@ -63,6 +63,7 @@ import com.nextext.sms.data.local.TransitOrderEntity
 import com.nextext.sms.domain.model.ReminderKind
 import com.nextext.sms.domain.model.TransitOrderKind
 import com.nextext.sms.ui.components.TopAmbientGlow
+import com.nextext.sms.ui.components.TopNavDestinationTabs
 import com.nextext.sms.ui.util.Formatters
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,6 +72,8 @@ fun SmartHubScreen(
     reminders: List<ReminderEntity>,
     transitOrders: List<TransitOrderEntity>,
     useMaterial3Design: Boolean = false,
+    swapMenuBarPositions: Boolean = false,
+    unreadMessagesCount: Int = 0,
     onNavigateToMessages: () -> Unit = {},
     onNavigateToFinance: () -> Unit = {},
     onToggleReminderDone: (Long, Boolean) -> Unit,
@@ -100,13 +103,28 @@ fun SmartHubScreen(
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
-                TopAppBar(
-                    colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        titleContentColor = if (!useMaterial3Design) Color.White else MaterialTheme.colorScheme.onSurface
-                    ),
-                    title = { Text("Reminders & Trips", fontWeight = FontWeight.Bold) }
-                )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    TopAppBar(
+                        colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent,
+                            titleContentColor = if (!useMaterial3Design) Color.White else MaterialTheme.colorScheme.onSurface
+                        ),
+                        title = { Text("Reminders & Trips", fontWeight = FontWeight.Bold) }
+                    )
+                    if (!useMaterial3Design && swapMenuBarPositions) {
+                        TopNavDestinationTabs(
+                            selectedTab = 1,
+                            unreadMessagesCount = unreadMessagesCount,
+                            accentColor = accentColor,
+                            onSelectTab = { tabIndex ->
+                                when (tabIndex) {
+                                    0 -> onNavigateToMessages()
+                                    2 -> onNavigateToFinance()
+                                }
+                            }
+                        )
+                    }
+                }
             },
             floatingActionButton = {
                 if (selectedTab == 0) {

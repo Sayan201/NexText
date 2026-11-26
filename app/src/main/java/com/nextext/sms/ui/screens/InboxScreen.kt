@@ -96,6 +96,7 @@ import com.nextext.sms.data.local.ThreadSummary
 import com.nextext.sms.domain.model.MessageCategory
 import com.nextext.sms.ui.components.TopAmbientGlow
 import com.nextext.sms.ui.components.TopCategoryFilterTabs
+import com.nextext.sms.ui.components.TopNavDestinationTabs
 import com.nextext.sms.ui.util.Formatters
 import com.nextext.sms.ui.viewmodel.InboxFilter
 import kotlin.math.abs
@@ -112,6 +113,7 @@ fun InboxScreen(
     hasPermissions: Boolean,
     unreadOnly: Boolean,
     useMaterial3Design: Boolean,
+    swapMenuBarPositions: Boolean = false,
     onSelectFilter: (InboxFilter) -> Unit,
     onOpenThread: (ThreadSummary) -> Unit,
     onOpenSearch: () -> Unit,
@@ -196,6 +198,10 @@ fun InboxScreen(
                                     showTopOverflowMenu = false
                                     onSelectFilter(InboxFilter.ARCHIVED)
                                 },
+                                onStarred = {
+                                    showTopOverflowMenu = false
+                                    onSelectFilter(InboxFilter.STARRED)
+                                },
                                 onBlocked = {
                                     showTopOverflowMenu = false
                                     onOpenSettings()
@@ -217,14 +223,28 @@ fun InboxScreen(
                     }
                 )
 
-                    // Top category tabs: Personal | Transactions | Promotions | Starred
+                    // Top tabs: either category filters (Personal | Transactions | Promotions) or swapped destination tabs (Messages | Reminders | Finance)
                     if (!useMaterial3Design) {
-                        TopCategoryFilterTabs(
-                            selectedFilter = selectedFilter,
-                            unreadCounts = unreadCounts,
-                            accentColor = accentColor,
-                            onSelectFilter = onSelectFilter
-                        )
+                        if (swapMenuBarPositions) {
+                            TopNavDestinationTabs(
+                                selectedTab = 0,
+                                unreadMessagesCount = unreadCounts.values.sum(),
+                                accentColor = accentColor,
+                                onSelectTab = { tabIndex ->
+                                    when (tabIndex) {
+                                        1 -> onNavigateToReminders()
+                                        2 -> onNavigateToFinance()
+                                    }
+                                }
+                            )
+                        } else {
+                            TopCategoryFilterTabs(
+                                selectedFilter = selectedFilter,
+                                unreadCounts = unreadCounts,
+                                accentColor = accentColor,
+                                onSelectFilter = onSelectFilter
+                            )
+                        }
                     }
                 }
         }
@@ -380,6 +400,7 @@ private fun Photo5TopOverflowMenu(
     onMarkAllAsRead: () -> Unit,
     onRefreshMessages: () -> Unit,
     onArchive: () -> Unit,
+    onStarred: () -> Unit,
     onBlocked: () -> Unit,
     onInviteFriends: () -> Unit,
     onFeedback: () -> Unit,
@@ -444,6 +465,15 @@ private fun Photo5TopOverflowMenu(
                 Icon(Icons.Default.Archive, contentDescription = null, tint = Color.White)
             },
             onClick = onArchive
+        )
+
+        // 5. Starred
+        DropdownMenuItem(
+            text = { Text("Starred", color = Color.White, fontSize = 15.sp) },
+            leadingIcon = {
+                Icon(Icons.Default.Star, contentDescription = null, tint = Color.White)
+            },
+            onClick = onStarred
         )
 
         // 5. Blocked

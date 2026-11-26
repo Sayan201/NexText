@@ -30,7 +30,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -65,8 +67,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.nextext.sms.domain.model.MessageCategory
 import com.nextext.sms.sms.NotificationHelper
 import com.nextext.sms.ui.components.LiquidGlassNavBottomBar
+import com.nextext.sms.ui.components.LiquidGlassTabItem
 import com.nextext.sms.ui.screens.ComposeScreen
 import com.nextext.sms.ui.screens.FinanceScreen
 import com.nextext.sms.ui.screens.InboxScreen
@@ -75,6 +79,7 @@ import com.nextext.sms.ui.screens.SettingsScreen
 import com.nextext.sms.ui.screens.SmartHubScreen
 import com.nextext.sms.ui.screens.ThreadScreen
 import com.nextext.sms.ui.theme.NexTextTheme
+import com.nextext.sms.ui.viewmodel.InboxFilter
 import com.nextext.sms.ui.viewmodel.MainViewModel
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
@@ -382,6 +387,7 @@ private fun NexTextApp(
                     hasPermissions = hasPermissions,
                     unreadOnly = unreadOnly,
                     useMaterial3Design = prefs.useMaterial3Design,
+                    swapMenuBarPositions = prefs.swapMenuBarPositions,
                     onSelectFilter = viewModel::setFilter,
                     onOpenThread = { thread ->
                         val title = thread.contactName?.takeIf { it.isNotBlank() } ?: thread.address
@@ -424,6 +430,8 @@ private fun NexTextApp(
                 FinanceScreen(
                     state = financeState,
                     useMaterial3Design = prefs.useMaterial3Design,
+                    swapMenuBarPositions = prefs.swapMenuBarPositions,
+                    unreadMessagesCount = unreadCounts.values.sum(),
                     onNavigateToMessages = {
                         navController.navigate(Routes.INBOX) {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -449,6 +457,8 @@ private fun NexTextApp(
                     reminders = reminders,
                     transitOrders = transitOrders,
                     useMaterial3Design = prefs.useMaterial3Design,
+                    swapMenuBarPositions = prefs.swapMenuBarPositions,
+                    unreadMessagesCount = unreadCounts.values.sum(),
                     onNavigateToMessages = {
                         navController.navigate(Routes.INBOX) {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -648,37 +658,94 @@ private fun NexTextApp(
         }
 
         AnimatedVisibility(
-            visible = !prefs.useMaterial3Design && currentRoute in listOf(Routes.INBOX, Routes.FINANCE, Routes.SMART_HUB),
+            visible = !prefs.useMaterial3Design && (
+                (!prefs.swapMenuBarPositions && currentRoute in listOf(Routes.INBOX, Routes.FINANCE, Routes.SMART_HUB)) ||
+                    (prefs.swapMenuBarPositions && currentRoute == Routes.INBOX)
+                ),
             enter = fadeIn(tween(220, easing = FastOutSlowInEasing)) + slideInVertically(tween(220, easing = FastOutSlowInEasing)) { it / 2 },
             exit = fadeOut(tween(160, easing = FastOutSlowInEasing)) + slideOutVertically(tween(160, easing = FastOutSlowInEasing)) { it / 2 },
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
-            val selectedTab = when (currentRoute) {
-                Routes.INBOX -> 0
-                Routes.SMART_HUB -> 1
-                Routes.FINANCE -> 2
-                else -> 0
+            val isSwapped = prefs.swapMenuBarPositions
+            val tabs = if (isSwapped) {
+                listOf(
+                    LiquidGlassTabItem(
+                        label = "Personal",
+                        icon = Icons.Default.Person,
+                        unreadCount = unreadCounts[MessageCategory.PERSONAL] ?: 0
+                    ),
+                    LiquidGlassTabItem(
+                        label = "Transactions",
+                        icon = Icons.Default.CreditCard,
+                        unreadCount = unreadCounts[MessageCategory.TRANSACTIONS] ?: 0
+                    ),
+                    LiquidGlassTabItem(
+                        label = "Promotions",
+                        icon = Icons.Default.LocalOffer,
+                        unreadCount = unreadCounts[MessageCategory.PROMOTIONS] ?: 0
+                    )
+                )
+            } else {
+                listOf(
+                    LiquidGlassTabItem(
+                        label = "Messages",
+                        icon = Icons.Default.ChatBubble,
+                        unreadCount = unreadCounts.values.sum()
+                    ),
+                    LiquidGlassTabItem(
+                        label = "Reminders",
+                        icon = Icons.Default.Notifications
+                    ),
+                    LiquidGlassTabItem(
+                        label = "Finance",
+                        icon = Icons.Default.CreditCard
+                    )
+                )
+            }
+            val selectedTab = if (isSwapped) {
+                when (selectedFilter) {
+                    InboxFilter.PERSONAL -> 0
+                    InboxFilter.TRANSACTIONS -> 1
+                    InboxFilter.PROMOTIONS -> 2
+                    else -> 0
+                }
+            } else {
+                when (currentRoute) {
+                    Routes.INBOX -> 0
+                    Routes.SMART_HUB -> 1
+                    Routes.FINANCE -> 2
+                    else -> 0
+                }
             }
             LiquidGlassNavBottomBar(
                 selectedTab = selectedTab,
-                unreadMessagesCount = unreadCounts.values.sum(),
+                tabs = tabs,
                 accentColor = MaterialTheme.colorScheme.primary,
                 hazeState = hazeState,
                 backdropLayer = backdropLayer,
                 backdropOriginInRoot = backdropOriginInRoot,
-                swapPositions = prefs.swapMenuBarPositions,
                 onSelectTab = { tab ->
-                    val target = when (tab) {
-                        0 -> Routes.INBOX
-                        1 -> Routes.SMART_HUB
-                        2 -> Routes.FINANCE
-                        else -> Routes.INBOX
-                    }
-                    if (navController.currentDestination?.route != target) {
-                        navController.navigate(target) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
+                    if (isSwapped) {
+                        val targetFilter = when (tab) {
+                            0 -> InboxFilter.PERSONAL
+                            1 -> InboxFilter.TRANSACTIONS
+                            2 -> InboxFilter.PROMOTIONS
+                            else -> InboxFilter.PERSONAL
+                        }
+                        viewModel.setFilter(targetFilter)
+                    } else {
+                        val target = when (tab) {
+                            0 -> Routes.INBOX
+                            1 -> Routes.SMART_HUB
+                            2 -> Routes.FINANCE
+                            else -> Routes.INBOX
+                        }
+                        if (navController.currentDestination?.route != target) {
+                            navController.navigate(target) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
                     }
                 },

@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +58,7 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
@@ -215,7 +217,7 @@ fun TopAmbientGlow(
 }
 
 /**
- * Top category filter tabs (Personal | Transactions | Promotions | Starred)
+ * Top category filter tabs (Personal | Transactions | Promotions)
  */
 @Composable
 fun TopCategoryFilterTabs(
@@ -228,8 +230,7 @@ fun TopCategoryFilterTabs(
     val items = listOf(
         Triple(InboxFilter.PERSONAL, "Personal", unreadCounts[MessageCategory.PERSONAL] ?: 0),
         Triple(InboxFilter.TRANSACTIONS, "Transactions", unreadCounts[MessageCategory.TRANSACTIONS] ?: 0),
-        Triple(InboxFilter.PROMOTIONS, "Promotions", unreadCounts[MessageCategory.PROMOTIONS] ?: 0),
-        Triple(InboxFilter.STARRED, "Starred", 0)
+        Triple(InboxFilter.PROMOTIONS, "Promotions", unreadCounts[MessageCategory.PROMOTIONS] ?: 0)
     )
 
     Row(
@@ -335,32 +336,98 @@ private fun RealRefractionGlassLayer(
     }
 }
 
+data class LiquidGlassTabItem(
+    val label: String,
+    val icon: ImageVector,
+    val unreadCount: Int = 0
+)
+
 /**
- * 1-to-1 Zangetsu lower liquid glass capsule + circular button:
+ * Top primary destination tabs (Messages | Reminders | Finance)
+ * used when Swap menu bar positions is enabled.
+ */
+@Composable
+fun TopNavDestinationTabs(
+    selectedTab: Int,
+    unreadMessagesCount: Int,
+    accentColor: Color,
+    onSelectTab: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val items = listOf(
+        Triple(0, "Messages", unreadMessagesCount),
+        Triple(1, "Reminders", 0),
+        Triple(2, "Finance", 0)
+    )
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        items.forEach { (index, label, unread) ->
+            val isSelected = selectedTab == index
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onSelectTab(index) }
+                    .padding(vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = label,
+                        fontSize = 13.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) Color.White else Color(0xFF9CA3AF),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (unread > 0) {
+                        Spacer(Modifier.width(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFEF4444))
+                        )
+                    }
+                }
+                Spacer(Modifier.height(7.dp))
+                Box(
+                    modifier = Modifier
+                        .width(46.dp)
+                        .height(2.5.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(if (isSelected) accentColor else Color.Transparent)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Liquid Glass Design Language lower capsule + separate circular New Message button:
  * - Real pixel-level Snell's Law edge bending via AGSL RuntimeShader (API 33+)
  *   over the live NavHost GraphicsLayer (with Haze fallback on older Android).
- * - Selection lens pops outward (+10.dp horizontal/vertical) with 1.08x magnification
- *   when pressing, dragging, or switching tabs.
+ * - Single smooth outward crystal droplet expansion while pressing, dragging, or switching tabs.
  */
 @Composable
 fun LiquidGlassNavBottomBar(
     selectedTab: Int,
-    unreadMessagesCount: Int,
+    tabs: List<LiquidGlassTabItem>,
     accentColor: Color,
     hazeState: HazeState,
     backdropLayer: GraphicsLayer?,
     backdropOriginInRoot: Offset,
-    swapPositions: Boolean = false,
     onSelectTab: (Int) -> Unit,
     onComposeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val tabs = listOf(
-        Triple(0, "Messages", Icons.Default.ChatBubble),
-        Triple(1, "Reminders", Icons.Default.Notifications),
-        Triple(2, "Finance", Icons.Default.CreditCard)
-    )
-
     val capsuleShape = RoundedCornerShape(30.dp)
     val pillShape = RoundedCornerShape(28.dp)
     val density = LocalDensity.current
@@ -370,28 +437,39 @@ fun LiquidGlassNavBottomBar(
 
     var isDragging by remember { mutableStateOf(false) }
     var dragIndex by remember { mutableFloatStateOf(selectedTab.toFloat()) }
-    val interactionSources = remember { List(tabs.size) { MutableInteractionSource() } }
+    val interactionSources = remember(tabs.size) { List(tabs.size) { MutableInteractionSource() } }
     val pressedStates = interactionSources.map { it.collectIsPressedAsState().value }
     val isPressed = pressedStates.any { it }
+
+    // Latch press state briefly so there is zero 1-frame dip between finger-up and selectedTab update (fixes double bubble)
+    var recentPressLatch by remember { mutableStateOf(false) }
+    LaunchedEffect(isPressed) {
+        if (isPressed) {
+            recentPressLatch = true
+        } else if (recentPressLatch) {
+            kotlinx.coroutines.delay(95)
+            recentPressLatch = false
+        }
+    }
 
     val animatedIndex by animateFloatAsState(
         targetValue = if (isDragging) dragIndex else selectedTab.toFloat(),
         animationSpec = spring(
-            dampingRatio = 0.72f,
+            dampingRatio = 0.78f,
             stiffness = Spring.StiffnessMediumLow
         ),
-        label = "zangetsuSlide"
+        label = "liquidGlassSlide"
     )
 
-    val isSwitching = isDragging || isPressed || abs(animatedIndex - selectedTab.toFloat()) > 0.02f
+    val isSwitching = isDragging || isPressed || recentPressLatch || abs(animatedIndex - selectedTab.toFloat()) > 0.03f
 
     val expandProgress by animateFloatAsState(
         targetValue = if (isSwitching) 1f else 0f,
         animationSpec = spring(
-            dampingRatio = 0.62f,
+            dampingRatio = 0.72f,
             stiffness = Spring.StiffnessMediumLow
         ),
-        label = "zangetsuExpand"
+        label = "liquidGlassExpand"
     )
 
     Row(
@@ -402,15 +480,6 @@ fun LiquidGlassNavBottomBar(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (swapPositions) {
-            CircularCrystalComposeButton(
-                accentColor = accentColor,
-                hazeState = hazeState,
-                backdropLayer = backdropLayer,
-                backdropOriginInRoot = backdropOriginInRoot,
-                onClick = onComposeClick
-            )
-        }
 
         // Crystal Clear Navigation Capsule (60.dp)
         Box(
@@ -572,7 +641,7 @@ fun LiquidGlassNavBottomBar(
                         },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    tabs.forEach { (index, label, icon) ->
+                    tabs.forEachIndexed { index, item ->
                         val distance = abs(animatedIndex - index.toFloat())
                         val isActive = distance < 0.5f
                         val itemScale = if (isActive) 1f + 0.08f * expandProgress else 1f
@@ -596,8 +665,8 @@ fun LiquidGlassNavBottomBar(
                         ) {
                             Box {
                                 Icon(
-                                    imageVector = icon,
-                                    contentDescription = label,
+                                    imageVector = item.icon,
+                                    contentDescription = item.label,
                                     tint = when {
                                         isActive && expandProgress > 0.35f -> Color.White
                                         isActive -> accentColor
@@ -605,7 +674,7 @@ fun LiquidGlassNavBottomBar(
                                     },
                                     modifier = Modifier.size(22.dp)
                                 )
-                                if (index == 0 && unreadMessagesCount > 0) {
+                                if (item.unreadCount > 0) {
                                     Box(
                                         modifier = Modifier
                                             .size(6.5.dp)
@@ -617,7 +686,7 @@ fun LiquidGlassNavBottomBar(
                             }
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                text = label,
+                                text = item.label,
                                 fontSize = 10.sp,
                                 fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
                                 color = if (isActive) Color.White else Color(0xFFB4BAC6),

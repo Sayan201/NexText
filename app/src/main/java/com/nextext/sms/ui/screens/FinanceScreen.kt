@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import com.nextext.sms.data.local.TransactionEntity
 import com.nextext.sms.domain.model.TransactionType
 import com.nextext.sms.ui.components.TopAmbientGlow
+import com.nextext.sms.ui.components.TopNavDestinationTabs
 import com.nextext.sms.ui.util.Formatters
 import com.nextext.sms.ui.viewmodel.AccountCardSummary
 import com.nextext.sms.ui.viewmodel.FinanceDashboardState
@@ -62,6 +63,8 @@ private enum class TxFilter(val label: String) {
 fun FinanceScreen(
     state: FinanceDashboardState,
     useMaterial3Design: Boolean = false,
+    swapMenuBarPositions: Boolean = false,
+    unreadMessagesCount: Int = 0,
     onNavigateToMessages: () -> Unit = {},
     onNavigateToReminders: () -> Unit = {},
     onOpenThread: (Long, String) -> Unit
@@ -95,13 +98,28 @@ fun FinanceScreen(
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
-                TopAppBar(
-                    colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        titleContentColor = if (!useMaterial3Design) Color.White else MaterialTheme.colorScheme.onSurface
-                    ),
-                    title = { Text("Passbook & Expenses", fontWeight = FontWeight.Bold) }
-                )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    TopAppBar(
+                        colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent,
+                            titleContentColor = if (!useMaterial3Design) Color.White else MaterialTheme.colorScheme.onSurface
+                        ),
+                        title = { Text("Passbook & Expenses", fontWeight = FontWeight.Bold) }
+                    )
+                    if (!useMaterial3Design && swapMenuBarPositions) {
+                        TopNavDestinationTabs(
+                            selectedTab = 2,
+                            unreadMessagesCount = unreadMessagesCount,
+                            accentColor = accentColor,
+                            onSelectTab = { tabIndex ->
+                                when (tabIndex) {
+                                    0 -> onNavigateToMessages()
+                                    1 -> onNavigateToReminders()
+                                }
+                            }
+                        )
+                    }
+                }
             }
         ) { innerPadding ->
         if (state.transactions.isEmpty()) {
