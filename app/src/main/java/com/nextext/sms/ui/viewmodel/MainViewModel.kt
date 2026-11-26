@@ -11,7 +11,9 @@ import com.nextext.sms.data.local.ReminderEntity
 import com.nextext.sms.data.local.ThreadSummary
 import com.nextext.sms.data.local.TransactionEntity
 import com.nextext.sms.data.local.TransitOrderEntity
+import com.nextext.sms.data.preferences.GroupMessagingMode
 import com.nextext.sms.data.preferences.PitchBlackAccent
+import com.nextext.sms.data.preferences.SwipeAction
 import com.nextext.sms.data.preferences.ThemeMode
 import com.nextext.sms.data.preferences.UserPreferences
 import com.nextext.sms.domain.model.ContactOption
@@ -381,6 +383,22 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setShowOtpNotification(enabled: Boolean) {
         viewModelScope.launch { prefsRepo.setShowOtpCopyNotification(enabled) }
+    }
+
+    fun setSwapMenuBarPositions(enabled: Boolean) {
+        viewModelScope.launch { prefsRepo.setSwapMenuBarPositions(enabled) }
+    }
+
+    fun setGroupMessagingMode(mode: GroupMessagingMode) {
+        viewModelScope.launch { prefsRepo.setGroupMessagingMode(mode) }
+    }
+
+    fun setSwipeLeftAction(action: SwipeAction) {
+        viewModelScope.launch { prefsRepo.setSwipeLeftAction(action) }
+    }
+
+    fun setSwipeRightAction(action: SwipeAction) {
+        viewModelScope.launch { prefsRepo.setSwipeRightAction(action) }
     }
 
     fun exportBackup(uri: Uri) {

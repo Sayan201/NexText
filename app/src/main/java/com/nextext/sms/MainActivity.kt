@@ -460,6 +460,10 @@ private fun NexTextApp(
                     onSetAutoDeleteOtps = viewModel::setAutoDeleteOldOtps,
                     onSetMutePromotions = viewModel::setMutePromotions,
                     onSetShowOtpNotification = viewModel::setShowOtpNotification,
+                    onSetSwapMenuBarPositions = viewModel::setSwapMenuBarPositions,
+                    onSetGroupMessagingMode = viewModel::setGroupMessagingMode,
+                    onSetSwipeLeftAction = viewModel::setSwipeLeftAction,
+                    onSetSwipeRightAction = viewModel::setSwipeRightAction,
                     onCleanOldOtpsNow = viewModel::cleanOldOtpsNow,
                     onExportBackup = {
                         exportBackupLauncher.launch("nextext-backup-${System.currentTimeMillis()}.json")
@@ -615,6 +619,7 @@ private fun NexTextApp(
                 hazeState = hazeState,
                 backdropLayer = backdropLayer,
                 backdropOriginInRoot = backdropOriginInRoot,
+                swapPositions = prefs.swapMenuBarPositions,
                 onSelectTab = { tab ->
                     val target = when (tab) {
                         0 -> Routes.INBOX

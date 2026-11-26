@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -341,6 +342,7 @@ fun LiquidGlassNavBottomBar(
     hazeState: HazeState,
     backdropLayer: GraphicsLayer?,
     backdropOriginInRoot: Offset,
+    swapPositions: Boolean = false,
     onSelectTab: (Int) -> Unit,
     onComposeClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -388,11 +390,21 @@ fun LiquidGlassNavBottomBar(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+            .padding(start = 12.dp, end = 12.dp, top = 14.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Left: Crystal Clear Navigation Capsule (60.dp)
+        if (swapPositions) {
+            CircularCrystalComposeButton(
+                accentColor = accentColor,
+                hazeState = hazeState,
+                backdropLayer = backdropLayer,
+                backdropOriginInRoot = backdropOriginInRoot,
+                onClick = onComposeClick
+            )
+        }
+
+        // Crystal Clear Navigation Capsule (60.dp)
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -444,7 +456,7 @@ fun LiquidGlassNavBottomBar(
             ) {
                 val slotWidth = maxWidth / tabs.size
                 val slotWidthPx = with(density) { slotWidth.toPx() }
-                val expandPx = with(density) { (10.dp * expandProgress).toPx() }
+                val expandPx = with(density) { (9.dp * expandProgress).toPx() }
 
                 // Resting subtle indicator (Zangetsu indicatorColor = accent.withValues(alpha = 0.14))
                 Box(
@@ -462,19 +474,21 @@ fun LiquidGlassNavBottomBar(
                         .background(accentColor.copy(alpha = 0.14f * (1f - expandProgress)))
                 )
 
-                // Expanding 3D Liquid Glass Droplet (pops out +12.dp V & +8.dp H while holding/dragging/switching)
+                // Expanding 3D Liquid Glass Droplet (requiredSize bypasses 60.dp parent clamp so it floats outward!)
                 if (expandProgress > 0.01f) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.CenterStart)
                             .offset {
                                 IntOffset(
-                                    x = (animatedIndex * slotWidthPx - expandPx * 0.8f).roundToInt(),
+                                    x = (animatedIndex * slotWidthPx - expandPx).roundToInt(),
                                     y = 0
                                 )
                             }
-                            .width(slotWidth + (16.dp * expandProgress))
-                            .height(52.dp + (24.dp * expandProgress))
+                            .requiredSize(
+                                width = slotWidth + (18.dp * expandProgress),
+                                height = 52.dp + (26.dp * expandProgress)
+                            )
                             .graphicsLayer { alpha = expandProgress.coerceIn(0f, 1f) }
                     ) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
@@ -603,56 +617,74 @@ fun LiquidGlassNavBottomBar(
             }
         }
 
-        // Right: Separate Circular Crystal Glass New Message Button (56.dp, real edge refraction)
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .clip(CircleShape)
-                .clickable(onClick = onComposeClick),
-            contentAlignment = Alignment.Center
-        ) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
-                RealRefractionGlassLayer(
-                    backdropLayer = backdropLayer,
-                    backdropOriginInRoot = backdropOriginInRoot,
-                    shape = CircleShape,
-                    cornerRadiusDp = 28f,
-                    accentColor = accentColor,
-                    expandProgress = 0f,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
-                        .hazeChild(
-                            state = hazeState,
-                            style = HazeDefaults.style(
-                                backgroundColor = Color(0x1F000000),
-                                blurRadius = 4.dp,
-                                tint = HazeTint(Color(0x14FFFFFF))
-                            )
-                        )
-                        .border(
-                            width = 1.dp,
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.55f),
-                                    Color.White.copy(alpha = 0.14f),
-                                    Color.White.copy(alpha = 0.34f)
-                                )
-                            ),
-                            shape = CircleShape
-                        )
-                )
-            }
-            Icon(
-                imageVector = Icons.Default.Edit,
-                contentDescription = "New message",
-                tint = Color.White,
-                modifier = Modifier.size(22.dp)
+        if (!swapPositions) {
+            CircularCrystalComposeButton(
+                accentColor = accentColor,
+                hazeState = hazeState,
+                backdropLayer = backdropLayer,
+                backdropOriginInRoot = backdropOriginInRoot,
+                onClick = onComposeClick
             )
         }
+    }
+}
+
+@Composable
+private fun CircularCrystalComposeButton(
+    accentColor: Color,
+    hazeState: HazeState,
+    backdropLayer: GraphicsLayer?,
+    backdropOriginInRoot: Offset,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(56.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
+            RealRefractionGlassLayer(
+                backdropLayer = backdropLayer,
+                backdropOriginInRoot = backdropOriginInRoot,
+                shape = CircleShape,
+                cornerRadiusDp = 28f,
+                accentColor = accentColor,
+                expandProgress = 0f,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .hazeChild(
+                        state = hazeState,
+                        style = HazeDefaults.style(
+                            backgroundColor = Color(0x1F000000),
+                            blurRadius = 4.dp,
+                            tint = HazeTint(Color(0x14FFFFFF))
+                        )
+                    )
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.55f),
+                                Color.White.copy(alpha = 0.14f),
+                                Color.White.copy(alpha = 0.34f)
+                            )
+                        ),
+                        shape = CircleShape
+                    )
+            )
+        }
+        Icon(
+            imageVector = Icons.Default.Edit,
+            contentDescription = "New message",
+            tint = Color.White,
+            modifier = Modifier.size(22.dp)
+        )
     }
 }

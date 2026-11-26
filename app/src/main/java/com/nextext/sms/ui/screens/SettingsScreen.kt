@@ -1,12 +1,12 @@
 package com.nextext.sms.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -19,33 +19,52 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.nextext.sms.data.local.BlockedSenderEntity
+import com.nextext.sms.data.preferences.GroupMessagingMode
 import com.nextext.sms.data.preferences.PitchBlackAccent
+import com.nextext.sms.data.preferences.SwipeAction
 import com.nextext.sms.data.preferences.ThemeMode
 import com.nextext.sms.data.preferences.UserPreferences
 
@@ -64,6 +83,10 @@ fun SettingsScreen(
     onSetAutoDeleteOtps: (Boolean) -> Unit,
     onSetMutePromotions: (Boolean) -> Unit,
     onSetShowOtpNotification: (Boolean) -> Unit,
+    onSetSwapMenuBarPositions: (Boolean) -> Unit = {},
+    onSetGroupMessagingMode: (GroupMessagingMode) -> Unit = {},
+    onSetSwipeLeftAction: (SwipeAction) -> Unit = {},
+    onSetSwipeRightAction: (SwipeAction) -> Unit = {},
     onCleanOldOtpsNow: () -> Unit,
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
@@ -71,15 +94,31 @@ fun SettingsScreen(
     onRestoreFromGoogleDrive: () -> Unit = {},
     onUnblockSender: (String) -> Unit
 ) {
+    var expandedSection by remember { mutableStateOf<String?>("theme") }
+    var showGroupDialog by remember { mutableStateOf(false) }
+    var showSwipeDialog by remember { mutableStateOf(false) }
+
+    val isPitchBlack = !preferences.useMaterial3Design && preferences.themeMode == ThemeMode.PITCH_BLACK
+    val bgColor = if (isPitchBlack) Color.Black else MaterialTheme.colorScheme.background
+    val textColor = if (isPitchBlack) Color.White else MaterialTheme.colorScheme.onSurface
+    val subTextColor = if (isPitchBlack) Color(0xFF8E8E93) else MaterialTheme.colorScheme.onSurfaceVariant
+    val dividerColor = if (isPitchBlack) Color(0xFF1C1C1E) else MaterialTheme.colorScheme.outlineVariant
+
     Scaffold(
+        containerColor = bgColor,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = bgColor,
+                    titleContentColor = textColor,
+                    navigationIconContentColor = textColor
+                ),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                title = { Text("Settings & Backup", fontWeight = FontWeight.Bold) }
+                title = { Text("Settings", fontWeight = FontWeight.Bold) }
             )
         }
     ) { innerPadding ->
@@ -87,64 +126,267 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            contentPadding = PaddingValues(bottom = 32.dp)
         ) {
+            // 1. General
             item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Security, contentDescription = null)
-                        Spacer(Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                "100% On-Device Privacy",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                "NexText does not request INTERNET permission. Your SMS, OTPs, and finances never leave your phone.",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
+                SettingsRowItem(
+                    icon = Icons.Default.Settings,
+                    title = "General",
+                    trailingText = if (isDefaultSmsApp) "Active" else "Set Default",
+                    textColor = textColor,
+                    subTextColor = subTextColor,
+                    onClick = {
+                        expandedSection = if (expandedSection == "general") null else "general"
                     }
-                }
-            }
-
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(
+                )
+                AnimatedVisibility(visible = expandedSection == "general") {
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(start = 56.dp, end = 16.dp, bottom = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Default SMS App", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Security,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
                             Text(
-                                if (isDefaultSmsApp) "NexText is your active Default SMS app" else "Not yet set as Default SMS app",
+                                "100% On-Device Privacy • No INTERNET permission",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = subTextColor
                             )
                         }
-                        if (!isDefaultSmsApp) {
-                            Button(onClick = onRequestDefaultSms) { Text("Enable") }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Default SMS App", color = textColor, fontSize = 14.sp)
+                                Text(
+                                    if (isDefaultSmsApp) "NexText is your active Default SMS app"
+                                    else "Required for full SMS send/receive/delete",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = subTextColor
+                                )
+                            }
+                            if (!isDefaultSmsApp) {
+                                Button(onClick = onRequestDefaultSms) { Text("Enable") }
+                            }
                         }
                     }
                 }
+                HorizontalDivider(thickness = 0.5.dp, color = dividerColor)
             }
 
+            // 2. Swap menu bar positions
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Text("Appearance", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSetSwapMenuBarPositions(!preferences.swapMenuBarPositions) }
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SwapVert,
+                        contentDescription = null,
+                        tint = textColor,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Text(
+                        text = "Swap menu bar positions",
+                        color = textColor,
+                        fontSize = 16.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = preferences.swapMenuBarPositions,
+                        onCheckedChange = onSetSwapMenuBarPositions
+                    )
+                }
+                HorizontalDivider(thickness = 0.5.dp, color = dividerColor)
+            }
+
+            // 3. Backup & restore
+            item {
+                SettingsRowItem(
+                    icon = Icons.Default.CloudUpload,
+                    title = "Backup & restore",
+                    trailingText = "Drive & Local",
+                    textColor = textColor,
+                    subTextColor = subTextColor,
+                    onClick = {
+                        expandedSection = if (expandedSection == "backup") null else "backup"
+                    }
+                )
+                AnimatedVisibility(visible = expandedSection == "backup") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 56.dp, end = 16.dp, bottom = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text("Google Drive Backup", color = textColor, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Button(onClick = onBackupToGoogleDrive) { Text("Back up to Drive") }
+                            OutlinedButton(onClick = onRestoreFromGoogleDrive) { Text("Restore Drive") }
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text("Local JSON Backup", color = textColor, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Button(onClick = onExportBackup) { Text("Export Local") }
+                            OutlinedButton(onClick = onImportBackup) { Text("Restore Local") }
+                        }
+                    }
+                }
+                HorizontalDivider(thickness = 0.5.dp, color = dividerColor)
+            }
+
+            // 4. Message rules
+            item {
+                SettingsRowItem(
+                    icon = Icons.Default.DeleteSweep,
+                    title = "Message rules",
+                    trailingText = if (blockedSenders.isEmpty()) "Auto-OTP" else "${blockedSenders.size} blocked",
+                    textColor = textColor,
+                    subTextColor = subTextColor,
+                    onClick = {
+                        expandedSection = if (expandedSection == "rules") null else "rules"
+                    }
+                )
+                AnimatedVisibility(visible = expandedSection == "rules") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 56.dp, end = 16.dp, bottom = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        ToggleRow(
+                            title = "Auto-Clean OTPs after 24 hours",
+                            subtitle = "Removes unstarred OTP messages older than 24h",
+                            checked = preferences.autoDeleteOldOtps,
+                            onCheckedChange = onSetAutoDeleteOtps
+                        )
+                        OutlinedButton(onClick = onCleanOldOtpsNow) {
+                            Text("Clean Old OTPs Now")
+                        }
+                        if (blockedSenders.isNotEmpty()) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "Blocked Senders (${blockedSenders.size})",
+                                color = textColor,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp
+                            )
+                            blockedSenders.forEach { sender ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(sender.normalizedAddress, color = subTextColor, fontSize = 14.sp)
+                                    TextButton(onClick = { onUnblockSender(sender.normalizedAddress) }) {
+                                        Text("Unblock")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                HorizontalDivider(thickness = 0.5.dp, color = dividerColor)
+            }
+
+            // 5. Notifications
+            item {
+                SettingsRowItem(
+                    icon = Icons.Default.Notifications,
+                    title = "Notifications",
+                    trailingText = if (preferences.mutePromotionsNotifications) "Promos muted" else "All",
+                    textColor = textColor,
+                    subTextColor = subTextColor,
+                    onClick = {
+                        expandedSection = if (expandedSection == "notifications") null else "notifications"
+                    }
+                )
+                AnimatedVisibility(visible = expandedSection == "notifications") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 56.dp, end = 16.dp, bottom = 14.dp)
+                    ) {
+                        ToggleRow(
+                            title = "Show 1-Tap Copy OTP Notification",
+                            subtitle = "Adds a Copy OTP action button on verification alerts",
+                            checked = preferences.showOtpCopyNotification,
+                            onCheckedChange = onSetShowOtpNotification
+                        )
+                        ToggleRow(
+                            title = "Mute Promotions Notifications",
+                            subtitle = "Silently organize promotional offers without buzzing",
+                            checked = preferences.mutePromotionsNotifications,
+                            onCheckedChange = onSetMutePromotions
+                        )
+                    }
+                }
+                HorizontalDivider(thickness = 0.5.dp, color = dividerColor)
+            }
+
+            // 6. Group Messaging
+            item {
+                SettingsRowItem(
+                    icon = Icons.Default.Groups,
+                    title = "Group Messaging",
+                    trailingText = preferences.groupMessagingMode.label,
+                    textColor = textColor,
+                    subTextColor = subTextColor,
+                    onClick = { showGroupDialog = true }
+                )
+                HorizontalDivider(thickness = 0.5.dp, color = dividerColor)
+            }
+
+            // 7. Swipe actions
+            item {
+                SettingsRowItem(
+                    icon = Icons.Default.SwapHoriz,
+                    title = "Swipe actions",
+                    trailingText = "${preferences.swipeLeftAction.label} / ${preferences.swipeRightAction.label}",
+                    textColor = textColor,
+                    subTextColor = subTextColor,
+                    onClick = { showSwipeDialog = true }
+                )
+                HorizontalDivider(thickness = 0.5.dp, color = dividerColor)
+            }
+
+            // 8. Theme
+            item {
+                val themeSummary = when {
+                    preferences.useMaterial3Design -> "Material 3"
+                    preferences.themeMode == ThemeMode.PITCH_BLACK -> "Midnight (${preferences.pitchBlackAccent.label})"
+                    else -> preferences.themeMode.label
+                }
+                SettingsRowItem(
+                    icon = Icons.Default.Palette,
+                    title = "Theme",
+                    trailingText = themeSummary,
+                    textColor = textColor,
+                    subTextColor = subTextColor,
+                    onClick = {
+                        expandedSection = if (expandedSection == "theme") null else "theme"
+                    }
+                )
+                AnimatedVisibility(visible = expandedSection == "theme") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 56.dp, end = 16.dp, bottom = 16.dp)
+                    ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -159,26 +401,22 @@ fun SettingsScreen(
                                 )
                             }
                         }
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(6.dp))
                         ToggleRow(
                             title = "Material 3 Design",
-                            subtitle = "Enable Google Material 3 design and dynamic theme instead of SMS Organizer Pitch Black AMOLED style",
+                            subtitle = "Use Material 3 design instead of Pitch Black AMOLED",
                             checked = preferences.useMaterial3Design,
                             onCheckedChange = onSetUseMaterial3Design
                         )
                         if (!preferences.useMaterial3Design) {
-                            Spacer(Modifier.height(10.dp))
+                            Spacer(Modifier.height(8.dp))
                             Text(
                                 "Pitch Black Accent & Top Glow",
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Medium,
+                                color = textColor
                             )
-                            Text(
-                                "Choose your accent and ambient top glow color",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(Modifier.height(8.dp))
+                            Spacer(Modifier.height(6.dp))
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -218,102 +456,123 @@ fun SettingsScreen(
                         }
                     }
                 }
+                HorizontalDivider(thickness = 0.5.dp, color = dividerColor)
             }
+        }
+    }
 
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Text("OTP & Notifications", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(6.dp))
-                        ToggleRow(
-                            title = "Show 1-Tap Copy OTP Notification",
-                            subtitle = "Adds a Copy OTP action button on verification alerts",
-                            checked = preferences.showOtpCopyNotification,
-                            onCheckedChange = onSetShowOtpNotification
-                        )
-                        ToggleRow(
-                            title = "Mute Promotions Notifications",
-                            subtitle = "Silently organize promotional offers without buzzing",
-                            checked = preferences.mutePromotionsNotifications,
-                            onCheckedChange = onSetMutePromotions
-                        )
-                        ToggleRow(
-                            title = "Auto-Clean OTPs after 24 hours",
-                            subtitle = "Removes unstarred OTP messages older than 24h",
-                            checked = preferences.autoDeleteOldOtps,
-                            onCheckedChange = onSetAutoDeleteOtps
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        OutlinedButton(onClick = onCleanOldOtpsNow) {
-                            Text("Clean Old OTPs Now")
-                        }
-                    }
-                }
-            }
-
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Text("Local Backup & Restore", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "Export or restore all organized messages, reminders, and sender rules to a local JSON file.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.height(10.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Button(onClick = onExportBackup) { Text("Export Local") }
-                            OutlinedButton(onClick = onImportBackup) { Text("Restore Local") }
-                        }
-                    }
-                }
-            }
-
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Text("Google Drive Backup", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "Save a full message backup directly to your Google Drive account or restore an existing Drive backup.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.height(10.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Button(onClick = onBackupToGoogleDrive) { Text("Back up to Drive") }
-                            OutlinedButton(onClick = onRestoreFromGoogleDrive) { Text("Restore from Drive") }
-                        }
-                    }
-                }
-            }
-
-            if (blockedSenders.isNotEmpty()) {
-                item {
-                    Text(
-                        "Blocked Senders (${blockedSenders.size})",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                items(blockedSenders, key = { it.normalizedAddress }) { blocked ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
+    if (showGroupDialog) {
+        AlertDialog(
+            onDismissRequest = { showGroupDialog = false },
+            title = { Text("Group Messaging") },
+            text = {
+                Column {
+                    GroupMessagingMode.entries.forEach { mode ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                                .clickable {
+                                    onSetGroupMessagingMode(mode)
+                                    showGroupDialog = false
+                                }
+                                .padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(blocked.displayAddress, style = MaterialTheme.typography.bodyMedium)
-                            TextButton(onClick = { onUnblockSender(blocked.normalizedAddress) }) {
-                                Text("Unblock")
-                            }
+                            RadioButton(
+                                selected = preferences.groupMessagingMode == mode,
+                                onClick = {
+                                    onSetGroupMessagingMode(mode)
+                                    showGroupDialog = false
+                                }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(mode.label)
                         }
                     }
                 }
+            },
+            confirmButton = {
+                TextButton(onClick = { showGroupDialog = false }) { Text("Close") }
             }
+        )
+    }
+
+    if (showSwipeDialog) {
+        AlertDialog(
+            onDismissRequest = { showSwipeDialog = false },
+            title = { Text("Swipe Actions") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Swipe Left", fontWeight = FontWeight.SemiBold)
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        SwipeAction.entries.forEach { action ->
+                            FilterChip(
+                                selected = preferences.swipeLeftAction == action,
+                                onClick = { onSetSwipeLeftAction(action) },
+                                label = { Text(action.label) }
+                            )
+                        }
+                    }
+                    Text("Swipe Right", fontWeight = FontWeight.SemiBold)
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        SwipeAction.entries.forEach { action ->
+                            FilterChip(
+                                selected = preferences.swipeRightAction == action,
+                                onClick = { onSetSwipeRightAction(action) },
+                                label = { Text(action.label) }
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSwipeDialog = false }) { Text("Done") }
+            }
+        )
+    }
+}
+
+@Composable
+private fun SettingsRowItem(
+    icon: ImageVector,
+    title: String,
+    trailingText: String? = null,
+    textColor: Color,
+    subTextColor: Color,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = textColor,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(Modifier.width(16.dp))
+        Text(
+            text = title,
+            color = textColor,
+            fontSize = 16.sp,
+            modifier = Modifier.weight(1f)
+        )
+        if (!trailingText.isNullOrBlank()) {
+            Text(
+                text = trailingText,
+                color = subTextColor,
+                fontSize = 14.sp
+            )
         }
     }
 }
@@ -332,11 +591,10 @@ private fun ToggleRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
             Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Spacer(Modifier.width(8.dp))
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

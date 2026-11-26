@@ -34,6 +34,19 @@ enum class PitchBlackAccent(
     AMBER("Amber", 0xFFF59E0B, 0xFF362409, 0xFFFDE68A)
 }
 
+enum class GroupMessagingMode(val label: String) {
+    BULK("Bulk"),
+    INDIVIDUAL("Individual"),
+    MMS_GROUP("MMS Group")
+}
+
+enum class SwipeAction(val label: String) {
+    ARCHIVE("Archive"),
+    DELETE("Delete"),
+    MARK_READ("Mark as Read"),
+    NONE("None")
+}
+
 data class UserPreferences(
     val themeMode: ThemeMode = ThemeMode.PITCH_BLACK,
     val pitchBlackAccent: PitchBlackAccent = PitchBlackAccent.CYAN,
@@ -42,6 +55,10 @@ data class UserPreferences(
     val autoDeleteOldOtps: Boolean = false,
     val mutePromotionsNotifications: Boolean = true,
     val showOtpCopyNotification: Boolean = true,
+    val swapMenuBarPositions: Boolean = false,
+    val groupMessagingMode: GroupMessagingMode = GroupMessagingMode.BULK,
+    val swipeLeftAction: SwipeAction = SwipeAction.ARCHIVE,
+    val swipeRightAction: SwipeAction = SwipeAction.DELETE,
     val lastSyncTimestamp: Long = 0L
 )
 
@@ -55,6 +72,10 @@ class UserPreferencesRepository(private val context: Context) {
         val AUTO_DELETE_OTPS = booleanPreferencesKey("auto_delete_otps")
         val MUTE_PROMOS = booleanPreferencesKey("mute_promos")
         val OTP_NOTIFICATION = booleanPreferencesKey("otp_notification")
+        val SWAP_MENU_BAR = booleanPreferencesKey("swap_menu_bar")
+        val GROUP_MESSAGING = stringPreferencesKey("group_messaging")
+        val SWIPE_LEFT = stringPreferencesKey("swipe_left")
+        val SWIPE_RIGHT = stringPreferencesKey("swipe_right")
         val LAST_SYNC = longPreferencesKey("last_sync")
     }
 
@@ -71,6 +92,16 @@ class UserPreferencesRepository(private val context: Context) {
             autoDeleteOldOtps = prefs[Keys.AUTO_DELETE_OTPS] ?: false,
             mutePromotionsNotifications = prefs[Keys.MUTE_PROMOS] ?: true,
             showOtpCopyNotification = prefs[Keys.OTP_NOTIFICATION] ?: true,
+            swapMenuBarPositions = prefs[Keys.SWAP_MENU_BAR] ?: false,
+            groupMessagingMode = prefs[Keys.GROUP_MESSAGING]?.let {
+                runCatching { GroupMessagingMode.valueOf(it) }.getOrDefault(GroupMessagingMode.BULK)
+            } ?: GroupMessagingMode.BULK,
+            swipeLeftAction = prefs[Keys.SWIPE_LEFT]?.let {
+                runCatching { SwipeAction.valueOf(it) }.getOrDefault(SwipeAction.ARCHIVE)
+            } ?: SwipeAction.ARCHIVE,
+            swipeRightAction = prefs[Keys.SWIPE_RIGHT]?.let {
+                runCatching { SwipeAction.valueOf(it) }.getOrDefault(SwipeAction.DELETE)
+            } ?: SwipeAction.DELETE,
             lastSyncTimestamp = prefs[Keys.LAST_SYNC] ?: 0L
         )
     }
@@ -101,6 +132,22 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun setShowOtpCopyNotification(enabled: Boolean) {
         context.dataStore.edit { it[Keys.OTP_NOTIFICATION] = enabled }
+    }
+
+    suspend fun setSwapMenuBarPositions(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.SWAP_MENU_BAR] = enabled }
+    }
+
+    suspend fun setGroupMessagingMode(mode: GroupMessagingMode) {
+        context.dataStore.edit { it[Keys.GROUP_MESSAGING] = mode.name }
+    }
+
+    suspend fun setSwipeLeftAction(action: SwipeAction) {
+        context.dataStore.edit { it[Keys.SWIPE_LEFT] = action.name }
+    }
+
+    suspend fun setSwipeRightAction(action: SwipeAction) {
+        context.dataStore.edit { it[Keys.SWIPE_RIGHT] = action.name }
     }
 
     suspend fun setLastSyncTimestamp(timestamp: Long) {
