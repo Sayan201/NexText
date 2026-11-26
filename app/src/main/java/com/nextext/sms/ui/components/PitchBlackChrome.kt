@@ -410,42 +410,51 @@ fun LiquidGlassNavBottomBar(
                 .weight(1f)
                 .height(60.dp)
         ) {
-            // 1. Clipped capsule backdrop with real Snell's Law edge refraction
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
-                RealRefractionGlassLayer(
-                    backdropLayer = backdropLayer,
-                    backdropOriginInRoot = backdropOriginInRoot,
-                    shape = capsuleShape,
-                    cornerRadiusDp = 30f,
-                    accentColor = accentColor,
-                    expandProgress = 0f,
-                    modifier = Modifier.matchParentSize()
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .clip(capsuleShape)
-                        .hazeChild(
-                            state = hazeState,
-                            style = HazeDefaults.style(
-                                backgroundColor = Color(0x1F000000),
-                                blurRadius = 4.dp,
-                                tint = HazeTint(Color(0x14FFFFFF))
-                            )
-                        )
-                        .border(
-                            width = 1.dp,
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.45f),
-                                    Color.White.copy(alpha = 0.12f),
-                                    Color.White.copy(alpha = 0.28f)
+            // 1. Clipped capsule backdrop that shrinks slightly when selecting (so top droplet pops out further)
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .graphicsLayer {
+                        scaleX = 1f - 0.03f * expandProgress
+                        scaleY = 1f - 0.12f * expandProgress
+                    }
+            ) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
+                    RealRefractionGlassLayer(
+                        backdropLayer = backdropLayer,
+                        backdropOriginInRoot = backdropOriginInRoot,
+                        shape = capsuleShape,
+                        cornerRadiusDp = 30f,
+                        accentColor = accentColor,
+                        expandProgress = 0f,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(capsuleShape)
+                            .hazeChild(
+                                state = hazeState,
+                                style = HazeDefaults.style(
+                                    backgroundColor = Color(0x1F000000),
+                                    blurRadius = 4.dp,
+                                    tint = HazeTint(Color(0x14FFFFFF))
                                 )
-                            ),
-                            shape = capsuleShape
-                        )
-                )
+                            )
+                            .border(
+                                width = 1.dp,
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = 0.45f),
+                                        Color.White.copy(alpha = 0.12f),
+                                        Color.White.copy(alpha = 0.28f)
+                                    )
+                                ),
+                                shape = capsuleShape
+                            )
+                    )
+                }
             }
 
             // 2. Unclipped foreground layer for expanding liquid glass droplet + tabs

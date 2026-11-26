@@ -21,17 +21,23 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Quickreply
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -58,10 +64,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nextext.sms.BuildConfig
 import com.nextext.sms.data.local.BlockedSenderEntity
+import com.nextext.sms.data.preferences.AutoBackupFrequency
 import com.nextext.sms.data.preferences.GroupMessagingMode
 import com.nextext.sms.data.preferences.PitchBlackAccent
 import com.nextext.sms.data.preferences.SwipeAction
@@ -83,10 +92,12 @@ fun SettingsScreen(
     onSetAutoDeleteOtps: (Boolean) -> Unit,
     onSetMutePromotions: (Boolean) -> Unit,
     onSetShowOtpNotification: (Boolean) -> Unit,
+    onSetShowQuickReplies: (Boolean) -> Unit = {},
     onSetSwapMenuBarPositions: (Boolean) -> Unit = {},
     onSetGroupMessagingMode: (GroupMessagingMode) -> Unit = {},
     onSetSwipeLeftAction: (SwipeAction) -> Unit = {},
     onSetSwipeRightAction: (SwipeAction) -> Unit = {},
+    onSetAutoBackupFrequency: (AutoBackupFrequency) -> Unit = {},
     onCleanOldOtpsNow: () -> Unit,
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
@@ -94,15 +105,17 @@ fun SettingsScreen(
     onRestoreFromGoogleDrive: () -> Unit = {},
     onUnblockSender: (String) -> Unit
 ) {
+    val context = LocalContext.current
     var expandedSection by remember { mutableStateOf<String?>("theme") }
     var showGroupDialog by remember { mutableStateOf(false) }
     var showSwipeDialog by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
 
     val isPitchBlack = !preferences.useMaterial3Design && preferences.themeMode == ThemeMode.PITCH_BLACK
     val bgColor = if (isPitchBlack) Color.Black else MaterialTheme.colorScheme.background
     val textColor = if (isPitchBlack) Color.White else MaterialTheme.colorScheme.onSurface
     val subTextColor = if (isPitchBlack) Color(0xFF8E8E93) else MaterialTheme.colorScheme.onSurfaceVariant
-    val dividerColor = if (isPitchBlack) Color(0xFF1C1C1E) else MaterialTheme.colorScheme.outlineVariant
+    val dividerColor = if (isPitchBlack) Color.White.copy(alpha = 0.24f) else MaterialTheme.colorScheme.outlineVariant
 
     Scaffold(
         containerColor = bgColor,
@@ -219,7 +232,7 @@ fun SettingsScreen(
                 SettingsRowItem(
                     icon = Icons.Default.CloudUpload,
                     title = "Backup & restore",
-                    trailingText = "Drive & Local",
+                    trailingText = if (preferences.autoBackupFrequency == AutoBackupFrequency.OFF) "Drive & Local" else "Auto: ${preferences.autoBackupFrequency.label}",
                     textColor = textColor,
                     subTextColor = subTextColor,
                     onClick = {
@@ -233,12 +246,31 @@ fun SettingsScreen(
                             .padding(start = 56.dp, end = 16.dp, bottom = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        Text("Auto Backup Schedule", color = textColor, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Row(
+                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            AutoBackupFrequency.entries.forEach { freq ->
+                                FilterChip(
+                                    selected = preferences.autoBackupFrequency == freq,
+                                    onClick = { onSetAutoBackupFrequency(freq) },
+                                    label = { Text(freq.label) }
+                                )
+                            }
+                        }
+                        Text(
+                            "Saves a periodic backup locally (and syncs via Android's Google Drive device backup when enabled).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = subTextColor
+                        )
+                        Spacer(Modifier.height(2.dp))
                         Text("Google Drive Backup", color = textColor, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Button(onClick = onBackupToGoogleDrive) { Text("Back up to Drive") }
                             OutlinedButton(onClick = onRestoreFromGoogleDrive) { Text("Restore Drive") }
                         }
-                        Spacer(Modifier.height(4.dp))
+                        Spacer(Modifier.height(2.dp))
                         Text("Local JSON Backup", color = textColor, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Button(onClick = onExportBackup) { Text("Export Local") }
@@ -246,7 +278,7 @@ fun SettingsScreen(
                         }
                     }
                 }
-                HorizontalDivider(thickness = 0.5.dp, color = dividerColor)
+                HorizontalDivider(thickness = 0.6.dp, color = dividerColor)
             }
 
             // 4. Message rules
@@ -456,9 +488,98 @@ fun SettingsScreen(
                         }
                     }
                 }
-                HorizontalDivider(thickness = 0.5.dp, color = dividerColor)
+                HorizontalDivider(thickness = 0.6.dp, color = dividerColor)
+            }
+
+            // 9. Show quick replies
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSetShowQuickReplies(!preferences.showQuickReplies) }
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Quickreply,
+                        contentDescription = null,
+                        tint = textColor,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Text(
+                        text = "Show quick replies",
+                        color = textColor,
+                        fontSize = 16.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = preferences.showQuickReplies,
+                        onCheckedChange = onSetShowQuickReplies
+                    )
+                }
+                HorizontalDivider(thickness = 0.6.dp, color = dividerColor)
+            }
+
+            // 10. Check for updates
+            item {
+                SettingsRowItem(
+                    icon = Icons.Default.SystemUpdate,
+                    title = "Check for updates",
+                    trailingText = "GitHub",
+                    textColor = textColor,
+                    subTextColor = subTextColor,
+                    onClick = {
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("https://github.com/Sayan201/NexText/releases")
+                        )
+                        runCatching { context.startActivity(intent) }
+                    }
+                )
+                HorizontalDivider(thickness = 0.6.dp, color = dividerColor)
+            }
+
+            // 11. About
+            item {
+                SettingsRowItem(
+                    icon = Icons.Default.Info,
+                    title = "About",
+                    textColor = textColor,
+                    subTextColor = subTextColor,
+                    onClick = { showAboutDialog = true }
+                )
+                HorizontalDivider(thickness = 0.6.dp, color = dividerColor)
+            }
+
+            // 12. Version
+            item {
+                SettingsRowItem(
+                    icon = Icons.Default.Verified,
+                    title = "Version",
+                    trailingText = BuildConfig.VERSION_NAME,
+                    textColor = textColor,
+                    subTextColor = subTextColor,
+                    onClick = {}
+                )
+                HorizontalDivider(thickness = 0.6.dp, color = dividerColor)
             }
         }
+    }
+
+    if (showAboutDialog) {
+        AlertDialog(
+            onDismissRequest = { showAboutDialog = false },
+            title = { Text("About NexText") },
+            text = {
+                Text(
+                    "NexText is a 100% on-device smart SMS organizer with Pitch Black AMOLED & Liquid Glass styling, automatic OTP detection, Finance passbook tracking, and Reminders—with zero INTERNET permission."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showAboutDialog = false }) { Text("OK") }
+            }
+        )
     }
 
     if (showGroupDialog) {

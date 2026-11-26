@@ -460,10 +460,12 @@ private fun NexTextApp(
                     onSetAutoDeleteOtps = viewModel::setAutoDeleteOldOtps,
                     onSetMutePromotions = viewModel::setMutePromotions,
                     onSetShowOtpNotification = viewModel::setShowOtpNotification,
+                    onSetShowQuickReplies = viewModel::setShowQuickReplies,
                     onSetSwapMenuBarPositions = viewModel::setSwapMenuBarPositions,
                     onSetGroupMessagingMode = viewModel::setGroupMessagingMode,
                     onSetSwipeLeftAction = viewModel::setSwipeLeftAction,
                     onSetSwipeRightAction = viewModel::setSwipeRightAction,
+                    onSetAutoBackupFrequency = { freq -> viewModel.setAutoBackupFrequency(context, freq) },
                     onCleanOldOtpsNow = viewModel::cleanOldOtpsNow,
                     onExportBackup = {
                         exportBackupLauncher.launch("nextext-backup-${System.currentTimeMillis()}.json")

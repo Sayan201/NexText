@@ -11,11 +11,13 @@ import com.nextext.sms.data.local.ReminderEntity
 import com.nextext.sms.data.local.ThreadSummary
 import com.nextext.sms.data.local.TransactionEntity
 import com.nextext.sms.data.local.TransitOrderEntity
+import com.nextext.sms.data.preferences.AutoBackupFrequency
 import com.nextext.sms.data.preferences.GroupMessagingMode
 import com.nextext.sms.data.preferences.PitchBlackAccent
 import com.nextext.sms.data.preferences.SwipeAction
 import com.nextext.sms.data.preferences.ThemeMode
 import com.nextext.sms.data.preferences.UserPreferences
+import com.nextext.sms.worker.AutoBackupWorker
 import com.nextext.sms.domain.model.ContactOption
 import com.nextext.sms.domain.model.MessageCategory
 import com.nextext.sms.domain.model.ReminderKind
@@ -399,6 +401,22 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setSwipeRightAction(action: SwipeAction) {
         viewModelScope.launch { prefsRepo.setSwipeRightAction(action) }
+    }
+
+    fun setShowQuickReplies(enabled: Boolean) {
+        viewModelScope.launch { prefsRepo.setShowQuickReplies(enabled) }
+    }
+
+    fun setAutoBackupFrequency(context: android.content.Context, freq: AutoBackupFrequency) {
+        viewModelScope.launch {
+            prefsRepo.setAutoBackupFrequency(freq)
+            AutoBackupWorker.schedule(context, freq)
+            _snackbarMessage.value = if (freq == AutoBackupFrequency.OFF) {
+                "Auto backup disabled"
+            } else {
+                "Auto backup scheduled: ${freq.label}"
+            }
+        }
     }
 
     fun exportBackup(uri: Uri) {

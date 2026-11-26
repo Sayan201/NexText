@@ -47,6 +47,13 @@ enum class SwipeAction(val label: String) {
     NONE("None")
 }
 
+enum class AutoBackupFrequency(val label: String, val intervalDays: Long) {
+    OFF("Off", 0L),
+    DAILY("Daily", 1L),
+    WEEKLY("Weekly", 7L),
+    MONTHLY("Monthly", 30L)
+}
+
 data class UserPreferences(
     val themeMode: ThemeMode = ThemeMode.PITCH_BLACK,
     val pitchBlackAccent: PitchBlackAccent = PitchBlackAccent.CYAN,
@@ -55,10 +62,12 @@ data class UserPreferences(
     val autoDeleteOldOtps: Boolean = false,
     val mutePromotionsNotifications: Boolean = true,
     val showOtpCopyNotification: Boolean = true,
+    val showQuickReplies: Boolean = true,
     val swapMenuBarPositions: Boolean = false,
     val groupMessagingMode: GroupMessagingMode = GroupMessagingMode.BULK,
     val swipeLeftAction: SwipeAction = SwipeAction.ARCHIVE,
     val swipeRightAction: SwipeAction = SwipeAction.DELETE,
+    val autoBackupFrequency: AutoBackupFrequency = AutoBackupFrequency.OFF,
     val lastSyncTimestamp: Long = 0L
 )
 
@@ -72,10 +81,12 @@ class UserPreferencesRepository(private val context: Context) {
         val AUTO_DELETE_OTPS = booleanPreferencesKey("auto_delete_otps")
         val MUTE_PROMOS = booleanPreferencesKey("mute_promos")
         val OTP_NOTIFICATION = booleanPreferencesKey("otp_notification")
+        val SHOW_QUICK_REPLIES = booleanPreferencesKey("show_quick_replies")
         val SWAP_MENU_BAR = booleanPreferencesKey("swap_menu_bar")
         val GROUP_MESSAGING = stringPreferencesKey("group_messaging")
         val SWIPE_LEFT = stringPreferencesKey("swipe_left")
         val SWIPE_RIGHT = stringPreferencesKey("swipe_right")
+        val AUTO_BACKUP_FREQ = stringPreferencesKey("auto_backup_freq")
         val LAST_SYNC = longPreferencesKey("last_sync")
     }
 
@@ -92,6 +103,7 @@ class UserPreferencesRepository(private val context: Context) {
             autoDeleteOldOtps = prefs[Keys.AUTO_DELETE_OTPS] ?: false,
             mutePromotionsNotifications = prefs[Keys.MUTE_PROMOS] ?: true,
             showOtpCopyNotification = prefs[Keys.OTP_NOTIFICATION] ?: true,
+            showQuickReplies = prefs[Keys.SHOW_QUICK_REPLIES] ?: true,
             swapMenuBarPositions = prefs[Keys.SWAP_MENU_BAR] ?: false,
             groupMessagingMode = prefs[Keys.GROUP_MESSAGING]?.let {
                 runCatching { GroupMessagingMode.valueOf(it) }.getOrDefault(GroupMessagingMode.BULK)
@@ -102,6 +114,9 @@ class UserPreferencesRepository(private val context: Context) {
             swipeRightAction = prefs[Keys.SWIPE_RIGHT]?.let {
                 runCatching { SwipeAction.valueOf(it) }.getOrDefault(SwipeAction.DELETE)
             } ?: SwipeAction.DELETE,
+            autoBackupFrequency = prefs[Keys.AUTO_BACKUP_FREQ]?.let {
+                runCatching { AutoBackupFrequency.valueOf(it) }.getOrDefault(AutoBackupFrequency.OFF)
+            } ?: AutoBackupFrequency.OFF,
             lastSyncTimestamp = prefs[Keys.LAST_SYNC] ?: 0L
         )
     }
@@ -134,6 +149,10 @@ class UserPreferencesRepository(private val context: Context) {
         context.dataStore.edit { it[Keys.OTP_NOTIFICATION] = enabled }
     }
 
+    suspend fun setShowQuickReplies(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.SHOW_QUICK_REPLIES] = enabled }
+    }
+
     suspend fun setSwapMenuBarPositions(enabled: Boolean) {
         context.dataStore.edit { it[Keys.SWAP_MENU_BAR] = enabled }
     }
@@ -148,6 +167,10 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun setSwipeRightAction(action: SwipeAction) {
         context.dataStore.edit { it[Keys.SWIPE_RIGHT] = action.name }
+    }
+
+    suspend fun setAutoBackupFrequency(freq: AutoBackupFrequency) {
+        context.dataStore.edit { it[Keys.AUTO_BACKUP_FREQ] = freq.name }
     }
 
     suspend fun setLastSyncTimestamp(timestamp: Long) {

@@ -53,3 +53,38 @@ class ReminderAndCleanupWorker(
         }
     }
 }
+
+class AutoBackupWorker(
+    appContext: Context,
+    params: WorkerParameters
+) : CoroutineWorker(appContext, params) {
+
+    override suspend fun doWork(): Result {
+        val app = applicationContext as? NexTextApplication ?: return Result.success()
+        val backupDir = java.io.File(applicationContext.filesDir, "auto_backups").apply { mkdirs() }
+        val file = java.io.File(backupDir, "nextext-autobackup.json")
+        app.container.backupManager.exportToUri(android.net.Uri.fromFile(file))
+        return Result.success()
+    }
+
+    companion object {
+        private const val WORK_NAME = "nextext_auto_backup"
+
+        fun schedule(context: Context, frequency: com.nextext.sms.data.preferences.AutoBackupFrequency) {
+            val wm = WorkManager.getInstance(context)
+            if (frequency == com.nextext.sms.data.preferences.AutoBackupFrequency.OFF) {
+                wm.cancelUniqueWork(WORK_NAME)
+                return
+            }
+            val request = PeriodicWorkRequestBuilder<AutoBackupWorker>(
+                frequency.intervalDays,
+                TimeUnit.DAYS
+            ).build()
+            wm.enqueueUniquePeriodicWork(
+                WORK_NAME,
+                ExistingPeriodicWorkPolicy.UPDATE,
+                request
+            )
+        }
+    }
+}
