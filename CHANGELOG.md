@@ -26,6 +26,10 @@ All notable changes to NexText are documented here. Format follows [Keep a Chang
 - Requires the Google Drive app to be installed. De-Googled devices have no DocumentsProvider for Drive.
 - There is no server-side confirmation, no programmatic account picker, and the backup file is visible in Drive. Hidden app-data storage (`drive.appdata`) requires the Drive REST API.
 
+### Documentation
+- README rebuilt around real screenshots (`docs/screenshots/`), a feature tour, the full Drive backup reference, a download table, and an FAQ.
+- Release notes for `v1.2.0` mirror the same documentation.
+
 ## [1.1.0] — 2026-10-30
 
 ### Added
