@@ -28,9 +28,9 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.EventNote
-import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -42,11 +42,19 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import android.content.ActivityNotFoundException
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -257,20 +265,8 @@ private fun NexTextApp(
                                 restoreState = true
                             }
                         },
-                        icon = { Icon(Icons.Default.Forum, contentDescription = null) },
+                        icon = { Icon(Icons.Default.ChatBubble, contentDescription = null) },
                         label = { Text("Messages") }
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Routes.FINANCE,
-                        onClick = {
-                            navController.navigate(Routes.FINANCE) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = { Icon(Icons.Default.AccountBalanceWallet, contentDescription = null) },
-                        label = { Text("Passbook") }
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.SMART_HUB,
@@ -281,14 +277,28 @@ private fun NexTextApp(
                                 restoreState = true
                             }
                         },
-                        icon = { Icon(Icons.Default.EventNote, contentDescription = null) },
+                        icon = { Icon(Icons.Default.Notifications, contentDescription = null) },
                         label = { Text("Reminders") }
+                    )
+                    NavigationBarItem(
+                        selected = currentRoute == Routes.FINANCE,
+                        onClick = {
+                            navController.navigate(Routes.FINANCE) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = { Icon(Icons.Default.CreditCard, contentDescription = null) },
+                        label = { Text("Finance") }
                     )
                 }
             }
         }
     ) { innerPadding ->
         val hazeState = remember { HazeState() }
+        val backdropLayer = rememberGraphicsLayer()
+        var backdropOriginInRoot by remember { mutableStateOf(Offset.Zero) }
         val context = LocalContext.current
         Box(
             modifier = Modifier
@@ -305,6 +315,15 @@ private fun NexTextApp(
                 popExitTransition = { fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) },
                 modifier = Modifier
                     .fillMaxSize()
+                    .onGloballyPositioned { coords ->
+                        backdropOriginInRoot = coords.positionInRoot()
+                    }
+                    .drawWithContent {
+                        backdropLayer.record {
+                            this@drawWithContent.drawContent()
+                        }
+                        drawLayer(backdropLayer)
+                    }
                     .haze(state = hazeState)
             ) {
             composable(Routes.INBOX) {
@@ -594,6 +613,8 @@ private fun NexTextApp(
                 unreadMessagesCount = unreadCounts.values.sum(),
                 accentColor = MaterialTheme.colorScheme.primary,
                 hazeState = hazeState,
+                backdropLayer = backdropLayer,
+                backdropOriginInRoot = backdropOriginInRoot,
                 onSelectTab = { tab ->
                     val target = when (tab) {
                         0 -> Routes.INBOX

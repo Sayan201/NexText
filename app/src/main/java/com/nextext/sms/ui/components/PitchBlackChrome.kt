@@ -1,5 +1,6 @@
 package com.nextext.sms.ui.components
 
+import android.graphics.RenderEffect
 import android.graphics.RuntimeShader
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -12,6 +13,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -48,9 +50,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -67,13 +75,16 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
- * AGSL Liquid Glass optical surface shader matching Zangetsu's liquidNavGlassSettings:
- * - bodyMode: clear (alpha 0.12)
- * - fresnelStrength: 0.55
- * - rimLight: 0.12, rimShade: 0.45, rimShadeEnds: 0.10
- * - bodyShade: 0.12, glowIntensity: 0.12, ambientStrength: 0.06
+ * Real AGSL Liquid Glass Refraction Shader (Android 13+ / API 33+)
+ * Reads actual underlying pixels from `uniform shader contents` and applies:
+ * - Rounded-capsule SDF edge bending (Snell's Law refraction, refractiveIndex = 1.24, thickness = 26)
+ * - Soft crystal micro-blur (Zangetsu blur = 3)
+ * - Color saturation boost (1.15)
+ * - Fresnel rim lighting (0.55) + directional top/bottom specular bevel (rimShade = 0.45, rimLight = 0.12)
+ * - Upper-right caustic accent reflection
  */
-private const val LIQUID_GLASS_AGSL = """
+private const val LIQUID_GLASS_REFRACTION_AGSL = """
+uniform shader contents;
 uniform float2 uSize;
 uniform float uRadius;
 uniform float4 uAccent;
@@ -100,40 +111,53 @@ half4 main(float2 fragCoord) {
         sdRoundedBox(p + eps.yx, halfSize, r) - sdRoundedBox(p - eps.yx, halfSize, r)
     ));
 
-    // Distance inward from rim
     float distIn = -d;
-    float thickness = 26.0;
+    float thickness = 26.0 + 6.0 * uExpand;
     float edgeRatio = clamp(distIn / thickness, 0.0, 1.0);
 
-    // Fresnel rim curve (fresnelStrength = 0.55)
-    float fresnel = pow(1.0 - edgeRatio, 2.4) * (0.55 + 0.25 * uExpand);
+    // Snell's Law convex glass edge bending (refractiveIndex = 1.24)
+    float bendAmount = pow(1.0 - edgeRatio, 1.6) * (20.0 + 18.0 * uExpand);
+    float2 refractCoord = clamp(fragCoord - n * bendAmount, float2(1.0), uSize - float2(1.0));
 
-    // Directional top/bottom/end rim lighting (rimLight = 0.12, rimShade = 0.45, rimShadeEnds = 0.10)
+    // Soft crystal micro-blur (blur = 3)
+    float blurStep = 2.6;
+    half4 c0 = contents.eval(refractCoord);
+    half4 c1 = contents.eval(clamp(refractCoord + float2(blurStep, 0.0), float2(1.0), uSize - float2(1.0)));
+    half4 c2 = contents.eval(clamp(refractCoord - float2(blurStep, 0.0), float2(1.0), uSize - float2(1.0)));
+    half4 c3 = contents.eval(clamp(refractCoord + float2(0.0, blurStep), float2(1.0), uSize - float2(1.0)));
+    half4 c4 = contents.eval(clamp(refractCoord - float2(0.0, blurStep), float2(1.0), uSize - float2(1.0)));
+    float3 rgb = ((c0 + c1 + c2 + c3 + c4) * 0.2).rgb;
+
+    // Saturation = 1.15
+    float luma = dot(rgb, float3(0.299, 0.587, 0.114));
+    rgb = mix(float3(luma), rgb, 1.15);
+
+    // Clear dark-crystal glass tint (bodyShade = 0.12)
+    rgb = mix(rgb, float3(0.03, 0.04, 0.06), 0.18 + 0.10 * uExpand);
+
+    // Fresnel (0.55) + directional top/bottom specular bevel (rimLight = 0.12, rimShade = 0.45)
+    float fresnel = pow(1.0 - edgeRatio, 2.4) * (0.55 + 0.25 * uExpand);
     float topRim = clamp(-n.y, 0.0, 1.0);
     float bottomRim = clamp(n.y, 0.0, 1.0);
     float endRim = clamp(abs(n.x), 0.0, 1.0);
 
-    float crispRim = smoothstep(3.2, 0.0, distIn);
-    float specular = crispRim * (0.38 * topRim + 0.26 * bottomRim + 0.10 * endRim + 0.35 * uExpand);
+    float crispEdge = smoothstep(5.0, 0.0, distIn);
+    float specular = crispEdge * (0.62 * topRim + 0.42 * bottomRim + 0.12 * endRim + 0.24 * uExpand);
 
-    // Upper-right caustic accent glow
-    float2 causticCenter = float2(halfSize.x * 0.55, -halfSize.y * 0.35);
+    // Upper-right caustic reflection
+    float2 causticCenter = float2(halfSize.x * 0.52, -halfSize.y * 0.35);
     float causticDist = length(p - causticCenter) / max(halfSize.x, 1.0);
-    float caustic = smoothstep(0.95, 0.0, causticDist) * (0.12 + 0.18 * uExpand);
+    float caustic = smoothstep(0.90, 0.0, causticDist) * (0.14 + 0.22 * uExpand);
 
-    // Clear body shade + ambient strength
-    float bodyAlpha = 0.12 + 0.12 * (1.0 - edgeRatio) + 0.08 * uExpand;
-    float3 baseCol = float3(0.04, 0.05, 0.07) * (1.0 - 0.5 * edgeRatio);
-    float3 glassCol = baseCol + uAccent.rgb * caustic + float3(1.0) * (fresnel * 0.28 + specular);
+    rgb += uAccent.rgb * caustic;
+    rgb += float3(1.0) * (fresnel * 0.20 + specular);
 
-    float outAlpha = clamp(bodyAlpha + fresnel * 0.32 + specular * 0.65, 0.0, 0.92);
-    return half4(glassCol * outAlpha, outAlpha);
+    return half4(clamp(rgb, 0.0, 1.0), 1.0);
 }
 """
 
 /**
  * Ambient top glow for Pitch Black AMOLED mode (defaults to Cyan).
- * Renders a smooth radial + vertical glow at the top of the screen that fades into #000000.
  */
 @Composable
 fun TopAmbientGlow(
@@ -174,7 +198,6 @@ fun TopAmbientGlow(
 
 /**
  * Top category filter tabs (Personal | Transactions | Promotions | Starred)
- * placed at the top of InboxScreen.
  */
 @Composable
 fun TopCategoryFilterTabs(
@@ -243,36 +266,63 @@ fun TopCategoryFilterTabs(
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
-private fun LiquidGlassShaderOverlay(
+private fun RealRefractionGlassLayer(
+    backdropLayer: GraphicsLayer,
+    backdropOriginInRoot: Offset,
+    shape: Shape,
     cornerRadiusDp: Float,
     accentColor: Color,
     expandProgress: Float,
     modifier: Modifier = Modifier
 ) {
-    val shader = remember { RuntimeShader(LIQUID_GLASS_AGSL) }
+    val shader = remember { RuntimeShader(LIQUID_GLASS_REFRACTION_AGSL) }
     val density = LocalDensity.current
-    Canvas(modifier = modifier) {
-        val radiusPx = with(density) { cornerRadiusDp.dp.toPx() }
-        shader.setFloatUniform("uSize", size.width, size.height)
-        shader.setFloatUniform("uRadius", radiusPx)
-        shader.setFloatUniform(
-            "uAccent",
-            accentColor.red,
-            accentColor.green,
-            accentColor.blue,
-            accentColor.alpha
-        )
-        shader.setFloatUniform("uExpand", expandProgress)
-        drawRect(brush = ShaderBrush(shader))
+    var elementPosInRoot by remember { mutableStateOf(Offset.Zero) }
+    var elementSize by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
+
+    Canvas(
+        modifier = modifier
+            .onGloballyPositioned { coords ->
+                elementPosInRoot = coords.positionInRoot()
+                elementSize = androidx.compose.ui.geometry.Size(
+                    coords.size.width.toFloat(),
+                    coords.size.height.toFloat()
+                )
+            }
+            .clip(shape)
+            .graphicsLayer {
+                if (elementSize.width > 1f && elementSize.height > 1f) {
+                    val radiusPx = with(density) { cornerRadiusDp.dp.toPx() }
+                    shader.setFloatUniform("uSize", elementSize.width, elementSize.height)
+                    shader.setFloatUniform("uRadius", radiusPx)
+                    shader.setFloatUniform(
+                        "uAccent",
+                        accentColor.red,
+                        accentColor.green,
+                        accentColor.blue,
+                        accentColor.alpha
+                    )
+                    shader.setFloatUniform("uExpand", expandProgress)
+                    renderEffect = RenderEffect
+                        .createRuntimeShaderEffect(shader, "contents")
+                        .asComposeRenderEffect()
+                }
+            }
+    ) {
+        val offsetX = elementPosInRoot.x - backdropOriginInRoot.x
+        val offsetY = elementPosInRoot.y - backdropOriginInRoot.y
+        translate(left = -offsetX, top = -offsetY) {
+            drawLayer(backdropLayer)
+        }
     }
 }
 
 /**
- * 1-to-1 port of Zangetsu's lower liquid glass capsule + right circular button:
- * - Left: 60.dp capsule (30.dp corner radius), horizontal padding 4.dp, blur 3-4.dp,
- *   AGSL optical Fresnel & specular glass shader, continuous spring-sliding indicator
- *   with 8.dp horizontal/vertical indicatorExpansion and 1.08x magnification.
- * - Right: 56.dp circular crystal glass New Message button separated by an 8.dp gap.
+ * 1-to-1 Zangetsu lower liquid glass capsule + circular button:
+ * - Real pixel-level Snell's Law edge bending via AGSL RuntimeShader (API 33+)
+ *   over the live NavHost GraphicsLayer (with Haze fallback on older Android).
+ * - Selection lens pops outward (+10.dp horizontal/vertical) with 1.08x magnification
+ *   when pressing, dragging, or switching tabs.
  */
 @Composable
 fun LiquidGlassNavBottomBar(
@@ -280,6 +330,8 @@ fun LiquidGlassNavBottomBar(
     unreadMessagesCount: Int,
     accentColor: Color,
     hazeState: HazeState,
+    backdropLayer: GraphicsLayer?,
+    backdropOriginInRoot: Offset,
     onSelectTab: (Int) -> Unit,
     onComposeClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -291,7 +343,7 @@ fun LiquidGlassNavBottomBar(
     )
 
     val capsuleShape = RoundedCornerShape(30.dp)
-    val pillShape = RoundedCornerShape(26.dp)
+    val pillShape = RoundedCornerShape(28.dp)
     val density = LocalDensity.current
 
     val currentOnSelectTab by rememberUpdatedState(onSelectTab)
@@ -299,6 +351,9 @@ fun LiquidGlassNavBottomBar(
 
     var isDragging by remember { mutableStateOf(false) }
     var dragIndex by remember { mutableFloatStateOf(selectedTab.toFloat()) }
+    val interactionSources = remember { List(tabs.size) { MutableInteractionSource() } }
+    val pressedStates = interactionSources.map { it.collectIsPressedAsState().value }
+    val isPressed = pressedStates.any { it }
 
     val animatedIndex by animateFloatAsState(
         targetValue = if (isDragging) dragIndex else selectedTab.toFloat(),
@@ -309,18 +364,17 @@ fun LiquidGlassNavBottomBar(
         label = "zangetsuSlide"
     )
 
-    val isSwitching = isDragging || abs(animatedIndex - selectedTab.toFloat()) > 0.04f
+    val isSwitching = isDragging || isPressed || abs(animatedIndex - selectedTab.toFloat()) > 0.02f
 
     val expandProgress by animateFloatAsState(
         targetValue = if (isSwitching) 1f else 0f,
         animationSpec = spring(
-            dampingRatio = 0.68f,
-            stiffness = Spring.StiffnessMedium
+            dampingRatio = 0.62f,
+            stiffness = Spring.StiffnessMediumLow
         ),
         label = "zangetsuExpand"
     )
 
-    // Zangetsu exact parameters: barHeight = 60, borderRadius = 30, button = 56, gap = 8, padding = 12
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -335,56 +389,45 @@ fun LiquidGlassNavBottomBar(
                 .weight(1f)
                 .height(60.dp)
         ) {
-            // 1. Clipped crystal backdrop (blur 3-4.dp like Zangetsu extraBlur: 3) + AGSL glass shader
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .clip(capsuleShape)
-                    .hazeChild(
-                        state = hazeState,
-                        style = HazeDefaults.style(
-                            backgroundColor = Color(0x1F000000),
-                            blurRadius = 4.dp,
-                            tint = HazeTint(Color(0x14FFFFFF))
+            // 1. Clipped capsule backdrop with real Snell's Law edge refraction
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
+                RealRefractionGlassLayer(
+                    backdropLayer = backdropLayer,
+                    backdropOriginInRoot = backdropOriginInRoot,
+                    shape = capsuleShape,
+                    cornerRadiusDp = 30f,
+                    accentColor = accentColor,
+                    expandProgress = 0f,
+                    modifier = Modifier.matchParentSize()
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clip(capsuleShape)
+                        .hazeChild(
+                            state = hazeState,
+                            style = HazeDefaults.style(
+                                backgroundColor = Color(0x1F000000),
+                                blurRadius = 4.dp,
+                                tint = HazeTint(Color(0x14FFFFFF))
+                            )
                         )
-                    )
-            ) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    LiquidGlassShaderOverlay(
-                        cornerRadiusDp = 30f,
-                        accentColor = accentColor,
-                        expandProgress = 0f,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.White.copy(alpha = 0.14f),
-                                        Color(0x1F000000),
-                                        Color.Black.copy(alpha = 0.18f)
-                                    )
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.45f),
+                                    Color.White.copy(alpha = 0.12f),
+                                    Color.White.copy(alpha = 0.28f)
                                 )
-                            )
-                            .border(
-                                width = 1.dp,
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.White.copy(alpha = 0.45f),
-                                        Color.White.copy(alpha = 0.12f),
-                                        Color.White.copy(alpha = 0.28f)
-                                    )
-                                ),
-                                shape = capsuleShape
-                            )
-                    )
-                }
+                            ),
+                            shape = capsuleShape
+                        )
+                )
             }
 
-            // 2. Unclipped foreground layer for Zangetsu indicatorExpansion (8.dp H & V) + tabs
+            // 2. Unclipped foreground layer for expanding liquid glass droplet + tabs
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
@@ -392,9 +435,9 @@ fun LiquidGlassNavBottomBar(
             ) {
                 val slotWidth = maxWidth / tabs.size
                 val slotWidthPx = with(density) { slotWidth.toPx() }
-                val expandPx = with(density) { (8.dp * expandProgress).toPx() }
+                val expandPx = with(density) { (10.dp * expandProgress).toPx() }
 
-                // Expanding 3D Liquid Glass Lens (expands 8.dp outward on every side while switching)
+                // Expanding 3D Liquid Glass Lens (pops 10.dp outward + refracts underlying pixels)
                 Box(
                     modifier = Modifier
                         .align(Alignment.CenterStart)
@@ -404,21 +447,15 @@ fun LiquidGlassNavBottomBar(
                                 y = 0
                             )
                         }
-                        .width(slotWidth + (16.dp * expandProgress))
-                        .height(52.dp + (16.dp * expandProgress))
-                        .clip(pillShape)
-                        .hazeChild(
-                            state = hazeState,
-                            style = HazeDefaults.style(
-                                backgroundColor = Color(0x1F000000),
-                                blurRadius = 6.dp,
-                                tint = HazeTint(accentColor.copy(alpha = 0.14f * (1f - 0.5f * expandProgress)))
-                            )
-                        )
+                        .width(slotWidth + (20.dp * expandProgress))
+                        .height(52.dp + (20.dp * expandProgress))
                 ) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        LiquidGlassShaderOverlay(
-                            cornerRadiusDp = 26f,
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
+                        RealRefractionGlassLayer(
+                            backdropLayer = backdropLayer,
+                            backdropOriginInRoot = backdropOriginInRoot,
+                            shape = pillShape,
+                            cornerRadiusDp = 28f,
                             accentColor = accentColor,
                             expandProgress = expandProgress,
                             modifier = Modifier.fillMaxSize()
@@ -427,22 +464,22 @@ fun LiquidGlassNavBottomBar(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color.White.copy(alpha = 0.16f * expandProgress + 0.06f),
-                                            accentColor.copy(alpha = 0.14f),
-                                            Color.White.copy(alpha = 0.10f * expandProgress + 0.04f)
-                                        )
+                                .clip(pillShape)
+                                .hazeChild(
+                                    state = hazeState,
+                                    style = HazeDefaults.style(
+                                        backgroundColor = Color(0x1F000000),
+                                        blurRadius = 6.dp,
+                                        tint = HazeTint(accentColor.copy(alpha = 0.14f))
                                     )
                                 )
                                 .border(
                                     width = (1f + 0.5f * expandProgress).dp,
                                     brush = Brush.verticalGradient(
                                         colors = listOf(
-                                            Color.White.copy(alpha = 0.40f + 0.45f * expandProgress),
+                                            Color.White.copy(alpha = 0.45f + 0.45f * expandProgress),
                                             Color.White.copy(alpha = 0.14f),
-                                            Color.White.copy(alpha = 0.28f + 0.40f * expandProgress)
+                                            Color.White.copy(alpha = 0.30f + 0.40f * expandProgress)
                                         )
                                     ),
                                     shape = pillShape
@@ -484,7 +521,6 @@ fun LiquidGlassNavBottomBar(
                     tabs.forEach { (index, label, icon) ->
                         val distance = abs(animatedIndex - index.toFloat())
                         val isActive = distance < 0.5f
-                        // Zangetsu magnification = 1.08f on active tab during transition
                         val itemScale = if (isActive) 1f + 0.08f * expandProgress else 1f
 
                         Column(
@@ -498,7 +534,7 @@ fun LiquidGlassNavBottomBar(
                                 }
                                 .clip(pillShape)
                                 .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
+                                    interactionSource = interactionSources[index],
                                     indication = null
                                 ) { onSelectTab(index) },
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -535,24 +571,19 @@ fun LiquidGlassNavBottomBar(
             }
         }
 
-        // Right: Separate Circular Crystal Glass New Message Button (56.dp, matches Zangetsu GlassButton)
+        // Right: Separate Circular Crystal Glass New Message Button (56.dp, real edge refraction)
         Box(
             modifier = Modifier
                 .size(56.dp)
                 .clip(CircleShape)
-                .hazeChild(
-                    state = hazeState,
-                    style = HazeDefaults.style(
-                        backgroundColor = Color(0x1F000000),
-                        blurRadius = 4.dp,
-                        tint = HazeTint(Color(0x14FFFFFF))
-                    )
-                )
                 .clickable(onClick = onComposeClick),
             contentAlignment = Alignment.Center
         ) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                LiquidGlassShaderOverlay(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
+                RealRefractionGlassLayer(
+                    backdropLayer = backdropLayer,
+                    backdropOriginInRoot = backdropOriginInRoot,
+                    shape = CircleShape,
                     cornerRadiusDp = 28f,
                     accentColor = accentColor,
                     expandProgress = 0.25f,
@@ -562,13 +593,13 @@ fun LiquidGlassNavBottomBar(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.16f),
-                                    Color(0x28000000),
-                                    Color.White.copy(alpha = 0.08f)
-                                )
+                        .clip(CircleShape)
+                        .hazeChild(
+                            state = hazeState,
+                            style = HazeDefaults.style(
+                                backgroundColor = Color(0x1F000000),
+                                blurRadius = 4.dp,
+                                tint = HazeTint(Color(0x14FFFFFF))
                             )
                         )
                         .border(
