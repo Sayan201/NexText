@@ -112,45 +112,54 @@ half4 main(float2 fragCoord) {
     ));
 
     float distIn = -d;
-    float thickness = 26.0 + 6.0 * uExpand;
+    float thickness = 28.0 + 8.0 * uExpand;
     float edgeRatio = clamp(distIn / thickness, 0.0, 1.0);
 
-    // Snell's Law convex glass edge bending (refractiveIndex = 1.24)
-    float bendAmount = pow(1.0 - edgeRatio, 1.6) * (20.0 + 18.0 * uExpand);
+    // Strong Snell's Law refraction concentrated in the curved rim (center stays crystal clear)
+    float bendFactor = pow(1.0 - edgeRatio, 2.2);
+    float bendAmount = bendFactor * (26.0 + 20.0 * uExpand);
     float2 refractCoord = clamp(fragCoord - n * bendAmount, float2(1.0), uSize - float2(1.0));
 
-    // Soft crystal micro-blur (blur = 3)
-    float blurStep = 2.6;
+    // Sharp center, slight optical dispersion/softness only near rim
+    float rimBlur = 2.2 * (1.0 - edgeRatio);
     half4 c0 = contents.eval(refractCoord);
-    half4 c1 = contents.eval(clamp(refractCoord + float2(blurStep, 0.0), float2(1.0), uSize - float2(1.0)));
-    half4 c2 = contents.eval(clamp(refractCoord - float2(blurStep, 0.0), float2(1.0), uSize - float2(1.0)));
-    half4 c3 = contents.eval(clamp(refractCoord + float2(0.0, blurStep), float2(1.0), uSize - float2(1.0)));
-    half4 c4 = contents.eval(clamp(refractCoord - float2(0.0, blurStep), float2(1.0), uSize - float2(1.0)));
-    float3 rgb = ((c0 + c1 + c2 + c3 + c4) * 0.2).rgb;
+    float3 rgb = c0.rgb;
+    if (rimBlur > 0.35) {
+        half4 c1 = contents.eval(clamp(refractCoord + float2(rimBlur, 0.0), float2(1.0), uSize - float2(1.0)));
+        half4 c2 = contents.eval(clamp(refractCoord - float2(rimBlur, 0.0), float2(1.0), uSize - float2(1.0)));
+        half4 c3 = contents.eval(clamp(refractCoord + float2(0.0, rimBlur), float2(1.0), uSize - float2(1.0)));
+        half4 c4 = contents.eval(clamp(refractCoord - float2(0.0, rimBlur), float2(1.0), uSize - float2(1.0)));
+        rgb = mix(rgb, ((c0 + c1 + c2 + c3 + c4) * 0.2).rgb, 0.65);
+    }
 
-    // Saturation = 1.15
+    // Saturation boost (Zangetsu saturation = 1.15)
     float luma = dot(rgb, float3(0.299, 0.587, 0.114));
     rgb = mix(float3(luma), rgb, 1.15);
 
-    // Clear dark-crystal glass tint (bodyShade = 0.12)
-    rgb = mix(rgb, float3(0.03, 0.04, 0.06), 0.18 + 0.10 * uExpand);
+    // Neutral dark-crystal body (no colored center wash; darker when expanded droplet)
+    float bodyDarken = mix(0.22, 0.55, uExpand);
+    rgb = mix(rgb, float3(0.02, 0.025, 0.035), bodyDarken * smoothstep(0.0, 0.5, edgeRatio));
 
-    // Fresnel (0.55) + directional top/bottom specular bevel (rimLight = 0.12, rimShade = 0.45)
-    float fresnel = pow(1.0 - edgeRatio, 2.4) * (0.55 + 0.25 * uExpand);
-    float topRim = clamp(-n.y, 0.0, 1.0);
-    float bottomRim = clamp(n.y, 0.0, 1.0);
-    float endRim = clamp(abs(n.x), 0.0, 1.0);
+    // Zangetsu double-band 3D liquid glass bevel:
+    // 1) Outer crisp hairline rim (0..2.5px)
+    float outerHairline = smoothstep(2.6, 0.0, distIn);
+    // 2) Dark rimShade groove (2.5..6.5px, rimShade = 0.45)
+    float groove = smoothstep(1.5, 4.0, distIn) * (1.0 - smoothstep(4.0, 7.5, distIn));
+    rgb *= (1.0 - 0.55 * groove);
+    // 3) Thick glossy inner bevel highlight (5..18px, concentrated top-left & bottom-right)
+    float innerBevelBand = smoothstep(3.5, 8.5, distIn) * (1.0 - smoothstep(8.5, 20.0, distIn));
 
-    float crispEdge = smoothstep(5.0, 0.0, distIn);
-    float specular = crispEdge * (0.62 * topRim + 0.42 * bottomRim + 0.12 * endRim + 0.24 * uExpand);
+    // Directional light from top-left (-0.45, -0.89) and secondary bottom reflection
+    float topLeftLight = clamp(dot(-n, normalize(float2(0.35, 0.94))), 0.0, 1.0);
+    float bottomLight = clamp(n.y, 0.0, 1.0);
+    float dirLight = pow(topLeftLight, 1.3) * 0.95 + pow(bottomLight, 1.6) * 0.55;
 
-    // Upper-right caustic reflection
-    float2 causticCenter = float2(halfSize.x * 0.52, -halfSize.y * 0.35);
-    float causticDist = length(p - causticCenter) / max(halfSize.x, 1.0);
-    float caustic = smoothstep(0.90, 0.0, causticDist) * (0.14 + 0.22 * uExpand);
+    float fresnelGlow = pow(1.0 - edgeRatio, 2.8) * (0.32 + 0.30 * uExpand);
+    float spec = outerHairline * (0.45 + 0.35 * uExpand + 0.25 * dirLight)
+               + innerBevelBand * dirLight * (0.28 + 0.62 * uExpand)
+               + fresnelGlow * 0.22;
 
-    rgb += uAccent.rgb * caustic;
-    rgb += float3(1.0) * (fresnel * 0.20 + specular);
+    rgb += float3(1.0) * spec;
 
     return half4(clamp(rgb, 0.0, 1.0), 1.0);
 }
@@ -437,30 +446,48 @@ fun LiquidGlassNavBottomBar(
                 val slotWidthPx = with(density) { slotWidth.toPx() }
                 val expandPx = with(density) { (10.dp * expandProgress).toPx() }
 
-                // Expanding 3D Liquid Glass Lens (pops 10.dp outward + refracts underlying pixels)
+                // Resting subtle indicator (Zangetsu indicatorColor = accent.withValues(alpha = 0.14))
                 Box(
                     modifier = Modifier
                         .align(Alignment.CenterStart)
                         .offset {
                             IntOffset(
-                                x = (animatedIndex * slotWidthPx - expandPx).roundToInt(),
+                                x = (animatedIndex * slotWidthPx).roundToInt(),
                                 y = 0
                             )
                         }
-                        .width(slotWidth + (20.dp * expandProgress))
-                        .height(52.dp + (20.dp * expandProgress))
-                ) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
-                        RealRefractionGlassLayer(
-                            backdropLayer = backdropLayer,
-                            backdropOriginInRoot = backdropOriginInRoot,
-                            shape = pillShape,
-                            cornerRadiusDp = 28f,
-                            accentColor = accentColor,
-                            expandProgress = expandProgress,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
+                        .width(slotWidth)
+                        .height(52.dp)
+                        .clip(pillShape)
+                        .background(accentColor.copy(alpha = 0.14f * (1f - expandProgress)))
+                )
+
+                // Expanding 3D Liquid Glass Droplet (pops out +12.dp V & +8.dp H while holding/dragging/switching)
+                if (expandProgress > 0.01f) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .offset {
+                                IntOffset(
+                                    x = (animatedIndex * slotWidthPx - expandPx * 0.8f).roundToInt(),
+                                    y = 0
+                                )
+                            }
+                            .width(slotWidth + (16.dp * expandProgress))
+                            .height(52.dp + (24.dp * expandProgress))
+                            .graphicsLayer { alpha = expandProgress.coerceIn(0f, 1f) }
+                    ) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
+                            RealRefractionGlassLayer(
+                                backdropLayer = backdropLayer,
+                                backdropOriginInRoot = backdropOriginInRoot,
+                                shape = pillShape,
+                                cornerRadiusDp = 28f,
+                                accentColor = accentColor,
+                                expandProgress = expandProgress,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -485,6 +512,7 @@ fun LiquidGlassNavBottomBar(
                                     shape = pillShape
                                 )
                         )
+                        }
                     }
                 }
 
@@ -544,7 +572,11 @@ fun LiquidGlassNavBottomBar(
                                 Icon(
                                     imageVector = icon,
                                     contentDescription = label,
-                                    tint = if (isActive) accentColor else Color.White,
+                                    tint = when {
+                                        isActive && expandProgress > 0.35f -> Color.White
+                                        isActive -> accentColor
+                                        else -> Color.White
+                                    },
                                     modifier = Modifier.size(22.dp)
                                 )
                                 if (index == 0 && unreadMessagesCount > 0) {
@@ -586,7 +618,7 @@ fun LiquidGlassNavBottomBar(
                     shape = CircleShape,
                     cornerRadiusDp = 28f,
                     accentColor = accentColor,
-                    expandProgress = 0.25f,
+                    expandProgress = 0f,
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
