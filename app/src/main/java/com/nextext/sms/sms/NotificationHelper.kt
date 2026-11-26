@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.RemoteInput
 import androidx.core.content.ContextCompat
 import com.nextext.sms.MainActivity
 import com.nextext.sms.R
@@ -24,8 +25,13 @@ object NotificationHelper {
 
     const val ACTION_COPY_OTP = "com.nextext.sms.ACTION_COPY_OTP"
     const val ACTION_MARK_READ = "com.nextext.sms.ACTION_MARK_READ"
+    const val ACTION_REPLY = "com.nextext.sms.ACTION_REPLY"
+    const val ACTION_DELETE = "com.nextext.sms.ACTION_DELETE"
+    const val KEY_TEXT_REPLY = "key_text_reply"
     const val EXTRA_OTP_CODE = "extra_otp_code"
     const val EXTRA_THREAD_ID = "extra_thread_id"
+    const val EXTRA_SENDER_ADDRESS = "extra_sender_address"
+    const val EXTRA_SENDER_TITLE = "extra_sender_title"
     const val EXTRA_NOTIFICATION_ID = "extra_notification_id"
 
     fun ensureChannels(context: Context) {
@@ -67,6 +73,7 @@ object NotificationHelper {
         context: Context,
         threadId: Long,
         senderTitle: String,
+        address: String = senderTitle,
         body: String,
         category: MessageCategory,
         otpCode: String?,
@@ -83,8 +90,10 @@ object NotificationHelper {
         }
 
         val openIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra(EXTRA_THREAD_ID, threadId)
+            putExtra(EXTRA_SENDER_TITLE, senderTitle)
+            putExtra(EXTRA_SENDER_ADDRESS, address)
         }
         val openPendingIntent = PendingIntent.getActivity(
             context,
@@ -127,6 +136,49 @@ object NotificationHelper {
             builder.addAction(0, "Copy $otpCode", copyPending)
         }
 
+        // Inline Reply action (RemoteInput requires FLAG_MUTABLE on Android 12+)
+        val remoteInput = RemoteInput.Builder(KEY_TEXT_REPLY)
+            .setLabel("Reply")
+            .build()
+        val replyIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+            action = ACTION_REPLY
+            putExtra(EXTRA_THREAD_ID, threadId)
+            putExtra(EXTRA_SENDER_ADDRESS, address)
+            putExtra(EXTRA_NOTIFICATION_ID, notificationId)
+        }
+        val replyFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+        } else {
+            PendingIntent.FLAG_UPDATE_CURRENT
+        }
+        val replyPending = PendingIntent.getBroadcast(
+            context,
+            notificationId + 3,
+            replyIntent,
+            replyFlags
+        )
+        builder.addAction(
+            NotificationCompat.Action.Builder(0, "Reply", replyPending)
+                .addRemoteInput(remoteInput)
+                .setAllowGeneratedReplies(true)
+                .build()
+        )
+
+        // Delete action
+        val deleteIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+            action = ACTION_DELETE
+            putExtra(EXTRA_THREAD_ID, threadId)
+            putExtra(EXTRA_NOTIFICATION_ID, notificationId)
+        }
+        val deletePending = PendingIntent.getBroadcast(
+            context,
+            notificationId + 4,
+            deleteIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        builder.addAction(0, "Delete", deletePending)
+
+        // Mark Read action
         val markReadIntent = Intent(context, NotificationActionReceiver::class.java).apply {
             action = ACTION_MARK_READ
             putExtra(EXTRA_THREAD_ID, threadId)

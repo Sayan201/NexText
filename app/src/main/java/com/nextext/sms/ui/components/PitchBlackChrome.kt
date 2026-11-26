@@ -137,9 +137,17 @@ half4 main(float2 fragCoord) {
     float luma = dot(rgb, float3(0.299, 0.587, 0.114));
     rgb = mix(float3(luma), rgb, 1.15);
 
-    // Neutral dark-crystal body (no colored center wash; darker when expanded droplet)
-    float bodyDarken = mix(0.22, 0.55, uExpand);
-    rgb = mix(rgb, float3(0.02, 0.025, 0.035), bodyDarken * smoothstep(0.0, 0.5, edgeRatio));
+    // Deep dark-crystal interior when held/expanded (matches Zangetsu Pic 2), clear at rest
+    float bodyDarken = mix(0.22, 0.88, uExpand);
+    rgb = mix(rgb, float3(0.02, 0.024, 0.032), bodyDarken * smoothstep(0.0, 0.42, edgeRatio));
+
+    // Local capsule-rim pinch illusion inside the held droplet's curved edges only
+    if (uExpand > 0.05) {
+        float pinchedHalfH = halfSize.y * 0.72;
+        float capEdgeDist = abs(abs(p.y) - pinchedHalfH);
+        float capEdgeLine = smoothstep(2.4, 0.0, capEdgeDist) * (1.0 - smoothstep(0.0, 0.55, edgeRatio));
+        rgb += float3(1.0) * capEdgeLine * 0.22 * uExpand;
+    }
 
     // Zangetsu double-band 3D liquid glass bevel:
     // 1) Outer crisp hairline rim (0..2.5px)
@@ -410,14 +418,9 @@ fun LiquidGlassNavBottomBar(
                 .weight(1f)
                 .height(60.dp)
         ) {
-            // 1. Clipped capsule backdrop that shrinks slightly when selecting (so top droplet pops out further)
+            // 1. Clipped capsule backdrop (stays full size while the held droplet creates the local pinch illusion)
             Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .graphicsLayer {
-                        scaleX = 1f - 0.03f * expandProgress
-                        scaleY = 1f - 0.12f * expandProgress
-                    }
+                modifier = Modifier.matchParentSize()
             ) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
                     RealRefractionGlassLayer(

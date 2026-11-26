@@ -78,6 +78,15 @@ import com.nextext.sms.ui.theme.NexTextTheme
 import com.nextext.sms.ui.viewmodel.MainViewModel
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+
+private data class NotificationNavTarget(
+    val threadId: Long,
+    val title: String,
+    val address: String,
+    val nonce: Long = System.nanoTime()
+)
 
 class MainActivity : ComponentActivity() {
 
@@ -85,11 +94,13 @@ class MainActivity : ComponentActivity() {
         MainViewModel.Factory((application as NexTextApplication).container)
     }
 
+    private val pendingNotificationTarget = MutableStateFlow<NotificationNavTarget?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val initialSendTarget = extractSmsTarget(intent)
-        val initialThreadId = intent.getLongExtra(NotificationHelper.EXTRA_THREAD_ID, -1L)
+        handleNotificationIntent(intent)
 
         setContent {
             val prefs by viewModel.preferences.collectAsStateWithLifecycle()
@@ -102,10 +113,33 @@ class MainActivity : ComponentActivity() {
                 NexTextApp(
                     viewModel = viewModel,
                     initialSendTarget = initialSendTarget,
-                    initialThreadId = initialThreadId,
+                    notificationTargetFlow = pendingNotificationTarget,
+                    onConsumeNotificationTarget = { pendingNotificationTarget.value = null },
                     onRequestDefaultSms = { launchDefaultSmsPrompt(it) }
                 )
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleNotificationIntent(intent)
+    }
+
+    private fun handleNotificationIntent(intent: Intent?) {
+        if (intent == null) return
+        val threadId = intent.getLongExtra(NotificationHelper.EXTRA_THREAD_ID, -1L)
+        if (threadId > 0L) {
+            val title = intent.getStringExtra(NotificationHelper.EXTRA_SENDER_TITLE)
+                ?.takeIf { it.isNotBlank() } ?: "Conversation"
+            val address = intent.getStringExtra(NotificationHelper.EXTRA_SENDER_ADDRESS).orEmpty()
+            pendingNotificationTarget.value = NotificationNavTarget(
+                threadId = threadId,
+                title = title,
+                address = address
+            )
+            intent.removeExtra(NotificationHelper.EXTRA_THREAD_ID)
         }
     }
 
@@ -162,11 +196,13 @@ private object Routes {
 private fun NexTextApp(
     viewModel: MainViewModel,
     initialSendTarget: Pair<String, String>?,
-    initialThreadId: Long,
+    notificationTargetFlow: StateFlow<NotificationNavTarget?>,
+    onConsumeNotificationTarget: () -> Unit,
     onRequestDefaultSms: ((Intent) -> Unit) -> Unit
 ) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
+    val notificationTarget by notificationTargetFlow.collectAsStateWithLifecycle()
 
     val threads by viewModel.filteredThreads.collectAsStateWithLifecycle()
     val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
@@ -233,8 +269,17 @@ private fun NexTextApp(
             navController.navigate(
                 Routes.composeRoute(initialSendTarget.first, initialSendTarget.second)
             )
-        } else if (initialThreadId > 0) {
-            navController.navigate(Routes.threadRoute(initialThreadId, "Conversation", ""))
+        }
+    }
+
+    LaunchedEffect(notificationTarget) {
+        notificationTarget?.let { target ->
+            navController.navigate(
+                Routes.threadRoute(target.threadId, target.title, target.address)
+            ) {
+                launchSingleTop = true
+            }
+            onConsumeNotificationTarget()
         }
     }
 

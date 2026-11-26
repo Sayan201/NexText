@@ -62,6 +62,7 @@ class SmsReceiver : BroadcastReceiver() {
                             context = context,
                             threadId = saved.threadId,
                             senderTitle = saved.contactName ?: saved.address,
+                            address = saved.address,
                             body = saved.body,
                             category = saved.category,
                             otpCode = otpForNotif,
