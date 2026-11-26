@@ -380,10 +380,16 @@ fun InboxScreen(
                                 onMarkRead = { onMarkRead(thread.threadId) }
                             )
                             if (!useMaterial3Design) {
-                                HorizontalDivider(
-                                    thickness = 0.5.dp,
-                                    color = Color(0xFF141416)
-                                )
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.fillMaxWidth(0.85f),
+                                        thickness = 0.6.dp,
+                                        color = Color.White.copy(alpha = 0.24f)
+                                    )
+                                }
                             }
                         }
                     }

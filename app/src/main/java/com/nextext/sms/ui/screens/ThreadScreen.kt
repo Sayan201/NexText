@@ -68,6 +68,8 @@ import com.nextext.sms.data.local.MessageEntity
 import com.nextext.sms.domain.model.MessageCategory
 import com.nextext.sms.domain.model.SimInfo
 import com.nextext.sms.domain.parser.SenderIdUtils
+import com.nextext.sms.ui.components.HyperOsSmartSmsCard
+import com.nextext.sms.ui.components.SmartSmsCardParser
 import com.nextext.sms.ui.util.Formatters
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -210,21 +212,42 @@ fun ThreadScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(messages, key = { it.id }) { msg ->
-                    Photo4MessageBubble(
-                        message = msg,
-                        onCopyOtp = { otp ->
-                            val clipboard = context.getSystemService(ClipboardManager::class.java)
-                            clipboard?.setPrimaryClip(ClipData.newPlainText("OTP", otp))
-                            onShowMessage("OTP $otp copied")
-                        },
-                        onCopyBody = {
-                            val clipboard = context.getSystemService(ClipboardManager::class.java)
-                            clipboard?.setPrimaryClip(ClipData.newPlainText("SMS", msg.body))
-                            onShowMessage("Message copied")
-                        },
-                        onToggleStar = { onToggleStar(msg.id, !msg.isStarred) },
-                        onDelete = { onDeleteMessage(msg.id, msg.systemSmsId) }
-                    )
+                    val smartCard = remember(msg.id, msg.body, msg.otpCode) {
+                        SmartSmsCardParser.parse(msg)
+                    }
+                    if (smartCard != null) {
+                        HyperOsSmartSmsCard(
+                            message = msg,
+                            card = smartCard,
+                            onCopyOtp = { otp ->
+                                val clipboard = context.getSystemService(ClipboardManager::class.java)
+                                clipboard?.setPrimaryClip(ClipData.newPlainText("OTP", otp))
+                                onShowMessage("OTP $otp copied")
+                            },
+                            onCopyCode = { code, label ->
+                                val clipboard = context.getSystemService(ClipboardManager::class.java)
+                                clipboard?.setPrimaryClip(ClipData.newPlainText(label, code))
+                                onShowMessage("$label $code copied")
+                            },
+                            onLongClick = {}
+                        )
+                    } else {
+                        Photo4MessageBubble(
+                            message = msg,
+                            onCopyOtp = { otp ->
+                                val clipboard = context.getSystemService(ClipboardManager::class.java)
+                                clipboard?.setPrimaryClip(ClipData.newPlainText("OTP", otp))
+                                onShowMessage("OTP $otp copied")
+                            },
+                            onCopyBody = {
+                                val clipboard = context.getSystemService(ClipboardManager::class.java)
+                                clipboard?.setPrimaryClip(ClipData.newPlainText("SMS", msg.body))
+                                onShowMessage("Message copied")
+                            },
+                            onToggleStar = { onToggleStar(msg.id, !msg.isStarred) },
+                            onDelete = { onDeleteMessage(msg.id, msg.systemSmsId) }
+                        )
+                    }
                 }
             }
 
