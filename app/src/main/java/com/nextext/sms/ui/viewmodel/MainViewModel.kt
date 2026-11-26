@@ -396,6 +396,24 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch { prefsRepo.setSwapMenuBarPositions(enabled) }
     }
 
+    fun setGlassNavStyle(
+        heightPercent: Int,
+        maxWidthPercent: Int,
+        buttonSpacingDp: Int,
+        opacityPercent: Int,
+        rimBrightnessPercent: Int
+    ) {
+        viewModelScope.launch {
+            prefsRepo.setGlassNavStyle(
+                heightPercent = heightPercent,
+                maxWidthPercent = maxWidthPercent,
+                buttonSpacingDp = buttonSpacingDp,
+                opacityPercent = opacityPercent,
+                rimBrightnessPercent = rimBrightnessPercent
+            )
+        }
+    }
+
     fun setGroupMessagingMode(mode: GroupMessagingMode) {
         viewModelScope.launch { prefsRepo.setGroupMessagingMode(mode) }
     }

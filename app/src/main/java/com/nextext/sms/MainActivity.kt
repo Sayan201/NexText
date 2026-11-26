@@ -522,6 +522,7 @@ private fun NexTextApp(
                     onSetShowOtpNotification = viewModel::setShowOtpNotification,
                     onSetShowQuickReplies = viewModel::setShowQuickReplies,
                     onSetSwapMenuBarPositions = viewModel::setSwapMenuBarPositions,
+                    onSetGlassNavStyle = viewModel::setGlassNavStyle,
                     onSetGroupMessagingMode = viewModel::setGroupMessagingMode,
                     onSetSwipeLeftAction = viewModel::setSwipeLeftAction,
                     onSetSwipeRightAction = viewModel::setSwipeRightAction,
@@ -708,6 +709,11 @@ private fun NexTextApp(
                 hazeState = hazeState,
                 backdropLayer = backdropLayer,
                 backdropOriginInRoot = backdropOriginInRoot,
+                heightPercent = prefs.glassBarHeightPercent,
+                maxWidthPercent = prefs.glassBarMaxWidthPercent,
+                buttonSpacingDp = prefs.glassBarButtonSpacingDp,
+                opacityPercent = prefs.glassBarOpacityPercent,
+                rimBrightnessPercent = prefs.glassBarRimBrightnessPercent,
                 onSelectTab = { tab ->
                     if (isSwapped) {
                         val targetFilter = when (tab) {

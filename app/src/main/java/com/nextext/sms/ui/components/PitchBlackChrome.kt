@@ -65,6 +65,7 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -92,6 +93,8 @@ uniform float2 uSize;
 uniform float uRadius;
 uniform float4 uAccent;
 uniform float uExpand;
+uniform float uOpacity;
+uniform float uRim;
 
 float sdRoundedBox(float2 p, float2 b, float r) {
     float2 q = abs(p) - b + float2(r);
@@ -135,12 +138,12 @@ half4 main(float2 fragCoord) {
         rgb = mix(rgb, ((c0 + c1 + c2 + c3 + c4) * 0.2).rgb, 0.65);
     }
 
-    // Saturation boost (Zangetsu saturation = 1.15)
+    // Saturation boost (1.15)
     float luma = dot(rgb, float3(0.299, 0.587, 0.114));
     rgb = mix(float3(luma), rgb, 1.15);
 
-    // Deep dark-crystal interior when held/expanded (matches Zangetsu Pic 2), clear at rest
-    float bodyDarken = mix(0.22, 0.88, uExpand);
+    // Configurable glass opacity at rest, deep dark-crystal interior when held/expanded
+    float bodyDarken = mix(uOpacity, max(uOpacity, 0.88), uExpand);
     rgb = mix(rgb, float3(0.02, 0.024, 0.032), bodyDarken * smoothstep(0.0, 0.42, edgeRatio));
 
     // Local capsule-rim pinch illusion inside the held droplet's curved edges only
@@ -151,24 +154,22 @@ half4 main(float2 fragCoord) {
         rgb += float3(1.0) * capEdgeLine * 0.22 * uExpand;
     }
 
-    // Zangetsu double-band 3D liquid glass bevel:
-    // 1) Outer crisp hairline rim (0..2.5px)
+    // Double-band 3D liquid glass bevel scaled by configurable rim brightness
+    float rimMult = mix(uRim * 2.22, max(uRim * 2.22, 1.0), uExpand);
     float outerHairline = smoothstep(2.6, 0.0, distIn);
-    // 2) Dark rimShade groove (2.5..6.5px, rimShade = 0.45)
     float groove = smoothstep(1.5, 4.0, distIn) * (1.0 - smoothstep(4.0, 7.5, distIn));
-    rgb *= (1.0 - 0.55 * groove);
-    // 3) Thick glossy inner bevel highlight (5..18px, concentrated top-left & bottom-right)
+    rgb *= (1.0 - 0.55 * groove * clamp(rimMult, 0.0, 1.3));
     float innerBevelBand = smoothstep(3.5, 8.5, distIn) * (1.0 - smoothstep(8.5, 20.0, distIn));
 
-    // Directional light from top-left (-0.45, -0.89) and secondary bottom reflection
+    // Directional light from top-left and secondary bottom reflection
     float topLeftLight = clamp(dot(-n, normalize(float2(0.35, 0.94))), 0.0, 1.0);
     float bottomLight = clamp(n.y, 0.0, 1.0);
     float dirLight = pow(topLeftLight, 1.3) * 0.95 + pow(bottomLight, 1.6) * 0.55;
 
     float fresnelGlow = pow(1.0 - edgeRatio, 2.8) * (0.32 + 0.30 * uExpand);
-    float spec = outerHairline * (0.45 + 0.35 * uExpand + 0.25 * dirLight)
+    float spec = (outerHairline * (0.45 + 0.35 * uExpand + 0.25 * dirLight)
                + innerBevelBand * dirLight * (0.28 + 0.62 * uExpand)
-               + fresnelGlow * 0.22;
+               + fresnelGlow * 0.22) * rimMult;
 
     rgb += float3(1.0) * spec;
 
@@ -292,6 +293,8 @@ private fun RealRefractionGlassLayer(
     cornerRadiusDp: Float,
     accentColor: Color,
     expandProgress: Float,
+    opacity: Float = 0.22f,
+    rimBrightness: Float = 0.45f,
     modifier: Modifier = Modifier
 ) {
     val shader = remember { RuntimeShader(LIQUID_GLASS_REFRACTION_AGSL) }
@@ -322,6 +325,8 @@ private fun RealRefractionGlassLayer(
                         accentColor.alpha
                     )
                     shader.setFloatUniform("uExpand", expandProgress)
+                    shader.setFloatUniform("uOpacity", opacity.coerceIn(0f, 1f))
+                    shader.setFloatUniform("uRim", rimBrightness.coerceIn(0f, 1f))
                     renderEffect = RenderEffect
                         .createRuntimeShaderEffect(shader, "contents")
                         .asComposeRenderEffect()
@@ -426,10 +431,26 @@ fun LiquidGlassNavBottomBar(
     backdropOriginInRoot: Offset,
     onSelectTab: (Int) -> Unit,
     onComposeClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    heightPercent: Int = 100,
+    maxWidthPercent: Int = 100,
+    buttonSpacingDp: Int = 4,
+    opacityPercent: Int = 22,
+    rimBrightnessPercent: Int = 45,
+    showComposeButton: Boolean = true
 ) {
-    val capsuleShape = RoundedCornerShape(30.dp)
-    val pillShape = RoundedCornerShape(28.dp)
+    val heightScale = (heightPercent.coerceIn(80, 135) / 100f)
+    val maxWidthFraction = (maxWidthPercent.coerceIn(65, 100) / 100f)
+    val spacingDp = buttonSpacingDp.coerceIn(0, 24).dp
+    val opacity = (opacityPercent.coerceIn(0, 100) / 100f)
+    val rimBrightness = (rimBrightnessPercent.coerceIn(0, 100) / 100f)
+
+    val capsuleHeight = (60f * heightScale).dp
+    val pillHeight = (52f * heightScale).dp
+    val capsuleCorner = (30f * heightScale).dp
+    val pillCorner = (28f * heightScale).dp
+    val capsuleShape = RoundedCornerShape(capsuleCorner)
+    val pillShape = RoundedCornerShape(pillCorner)
     val density = LocalDensity.current
 
     val currentOnSelectTab by rememberUpdatedState(onSelectTab)
@@ -472,175 +493,191 @@ fun LiquidGlassNavBottomBar(
         label = "liquidGlassExpand"
     )
 
-    Row(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(start = 12.dp, end = 12.dp, top = 14.dp, bottom = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .then(if (showComposeButton) Modifier.navigationBarsPadding() else Modifier),
+        contentAlignment = Alignment.Center
     ) {
-
-        // Crystal Clear Navigation Capsule (60.dp)
-        Box(
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .height(60.dp)
+                .fillMaxWidth(maxWidthFraction)
+                .padding(
+                    start = 12.dp,
+                    end = 12.dp,
+                    top = if (showComposeButton) 14.dp else 4.dp,
+                    bottom = if (showComposeButton) 12.dp else 4.dp
+                ),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // 1. Clipped capsule backdrop (stays full size while the held droplet creates the local pinch illusion)
+
+            // Crystal Clear Navigation Capsule
             Box(
-                modifier = Modifier.matchParentSize()
-            ) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
-                    RealRefractionGlassLayer(
-                        backdropLayer = backdropLayer,
-                        backdropOriginInRoot = backdropOriginInRoot,
-                        shape = capsuleShape,
-                        cornerRadiusDp = 30f,
-                        accentColor = accentColor,
-                        expandProgress = 0f,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(capsuleShape)
-                            .hazeChild(
-                                state = hazeState,
-                                style = HazeDefaults.style(
-                                    backgroundColor = Color(0x1F000000),
-                                    blurRadius = 4.dp,
-                                    tint = HazeTint(Color(0x14FFFFFF))
-                                )
-                            )
-                            .border(
-                                width = 1.dp,
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.White.copy(alpha = 0.45f),
-                                        Color.White.copy(alpha = 0.12f),
-                                        Color.White.copy(alpha = 0.28f)
-                                    )
-                                ),
-                                shape = capsuleShape
-                            )
-                    )
-                }
-            }
-
-            // 2. Unclipped foreground layer for expanding liquid glass droplet + tabs
-            BoxWithConstraints(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 4.dp)
+                    .weight(1f)
+                    .height(capsuleHeight)
             ) {
-                val slotWidth = maxWidth / tabs.size
-                val slotWidthPx = with(density) { slotWidth.toPx() }
-                val expandPx = with(density) { (9.dp * expandProgress).toPx() }
-
-                // Resting subtle indicator (Zangetsu indicatorColor = accent.withValues(alpha = 0.14))
+                // 1. Clipped capsule backdrop
                 Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .offset {
-                            IntOffset(
-                                x = (animatedIndex * slotWidthPx).roundToInt(),
-                                y = 0
-                            )
-                        }
-                        .width(slotWidth)
-                        .height(52.dp)
-                        .clip(pillShape)
-                        .background(accentColor.copy(alpha = 0.14f * (1f - expandProgress)))
-                )
+                    modifier = Modifier.matchParentSize()
+                ) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
+                        RealRefractionGlassLayer(
+                            backdropLayer = backdropLayer,
+                            backdropOriginInRoot = backdropOriginInRoot,
+                            shape = capsuleShape,
+                            cornerRadiusDp = capsuleCorner.value,
+                            accentColor = accentColor,
+                            expandProgress = 0f,
+                            opacity = opacity,
+                            rimBrightness = rimBrightness,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(capsuleShape)
+                                .hazeChild(
+                                    state = hazeState,
+                                    style = HazeDefaults.style(
+                                        backgroundColor = Color.Black.copy(alpha = opacity),
+                                        blurRadius = 4.dp,
+                                        tint = HazeTint(Color.White.copy(alpha = (opacity * 0.35f).coerceAtMost(0.18f)))
+                                    )
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = rimBrightness),
+                                            Color.White.copy(alpha = rimBrightness * 0.28f),
+                                            Color.White.copy(alpha = rimBrightness * 0.62f)
+                                        )
+                                    ),
+                                    shape = capsuleShape
+                                )
+                        )
+                    }
+                }
 
-                // Expanding 3D Liquid Glass Droplet (requiredSize bypasses 60.dp parent clamp so it floats outward!)
-                if (expandProgress > 0.01f) {
+                // 2. Unclipped foreground layer for expanding liquid glass droplet + tabs
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 4.dp)
+                ) {
+                    val totalSpacing = spacingDp * (tabs.size - 1).coerceAtLeast(0)
+                    val slotWidth = ((maxWidth - totalSpacing) / tabs.size).coerceAtLeast(36.dp)
+                    val slotStepPx = with(density) { (slotWidth + spacingDp).toPx() }
+                    val expandPx = with(density) { (9.dp * expandProgress).toPx() }
+
+                    // Resting subtle indicator
                     Box(
                         modifier = Modifier
                             .align(Alignment.CenterStart)
                             .offset {
                                 IntOffset(
-                                    x = (animatedIndex * slotWidthPx - expandPx).roundToInt(),
+                                    x = (animatedIndex * slotStepPx).roundToInt(),
                                     y = 0
                                 )
                             }
-                            .requiredSize(
-                                width = slotWidth + (18.dp * expandProgress),
-                                height = 52.dp + (26.dp * expandProgress)
-                            )
-                            .graphicsLayer { alpha = expandProgress.coerceIn(0f, 1f) }
-                    ) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
-                            RealRefractionGlassLayer(
-                                backdropLayer = backdropLayer,
-                                backdropOriginInRoot = backdropOriginInRoot,
-                                shape = pillShape,
-                                cornerRadiusDp = 28f,
-                                accentColor = accentColor,
-                                expandProgress = expandProgress,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        } else {
+                            .width(slotWidth)
+                            .height(pillHeight)
+                            .clip(pillShape)
+                            .background(accentColor.copy(alpha = 0.14f * (1f - expandProgress)))
+                    )
+
+                    // Expanding 3D Liquid Glass Droplet
+                    if (expandProgress > 0.01f) {
                         Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .clip(pillShape)
-                                .hazeChild(
-                                    state = hazeState,
-                                    style = HazeDefaults.style(
-                                        backgroundColor = Color(0x1F000000),
-                                        blurRadius = 6.dp,
-                                        tint = HazeTint(accentColor.copy(alpha = 0.14f))
+                                .align(Alignment.CenterStart)
+                                .offset {
+                                    IntOffset(
+                                        x = (animatedIndex * slotStepPx - expandPx).roundToInt(),
+                                        y = 0
                                     )
+                                }
+                                .requiredSize(
+                                    width = slotWidth + (18.dp * expandProgress),
+                                    height = pillHeight + (26.dp * expandProgress)
                                 )
-                                .border(
-                                    width = (1f + 0.5f * expandProgress).dp,
-                                    brush = Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color.White.copy(alpha = 0.45f + 0.45f * expandProgress),
-                                            Color.White.copy(alpha = 0.14f),
-                                            Color.White.copy(alpha = 0.30f + 0.40f * expandProgress)
+                                .graphicsLayer { alpha = expandProgress.coerceIn(0f, 1f) }
+                        ) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
+                                RealRefractionGlassLayer(
+                                    backdropLayer = backdropLayer,
+                                    backdropOriginInRoot = backdropOriginInRoot,
+                                    shape = pillShape,
+                                    cornerRadiusDp = pillCorner.value,
+                                    accentColor = accentColor,
+                                    expandProgress = expandProgress,
+                                    opacity = opacity,
+                                    rimBrightness = rimBrightness,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(pillShape)
+                                        .hazeChild(
+                                            state = hazeState,
+                                            style = HazeDefaults.style(
+                                                backgroundColor = Color.Black.copy(alpha = maxOf(opacity, 0.35f)),
+                                                blurRadius = 6.dp,
+                                                tint = HazeTint(accentColor.copy(alpha = 0.14f))
+                                            )
                                         )
-                                    ),
-                                    shape = pillShape
+                                        .border(
+                                            width = (1f + 0.5f * expandProgress).dp,
+                                            brush = Brush.verticalGradient(
+                                                colors = listOf(
+                                                    Color.White.copy(alpha = (rimBrightness + 0.45f * expandProgress).coerceIn(0f, 1f)),
+                                                    Color.White.copy(alpha = rimBrightness * 0.32f),
+                                                    Color.White.copy(alpha = (rimBrightness * 0.65f + 0.40f * expandProgress).coerceIn(0f, 1f))
+                                                )
+                                            ),
+                                            shape = pillShape
+                                        )
                                 )
-                        )
+                            }
                         }
                     }
-                }
 
-                // Tab items row + bidirectional continuous drag scrubber
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .pointerInput(tabs.size, slotWidthPx) {
-                            detectHorizontalDragGestures(
-                                onDragStart = { offset ->
-                                    isDragging = true
-                                    dragIndex = ((offset.x / slotWidthPx) - 0.5f)
-                                        .coerceIn(0f, (tabs.size - 1).toFloat())
-                                },
-                                onHorizontalDrag = { change, dragAmount ->
-                                    change.consume()
-                                    dragIndex = (dragIndex + dragAmount / slotWidthPx)
-                                        .coerceIn(0f, (tabs.size - 1).toFloat())
-                                },
-                                onDragEnd = {
-                                    val target = dragIndex.roundToInt().coerceIn(0, tabs.size - 1)
-                                    isDragging = false
-                                    if (target != currentSelectedTab) {
-                                        currentOnSelectTab(target)
+                    // Tab items row + bidirectional continuous drag scrubber
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(tabs.size, slotStepPx) {
+                                detectHorizontalDragGestures(
+                                    onDragStart = { offset ->
+                                        isDragging = true
+                                        dragIndex = ((offset.x / slotStepPx) - 0.5f)
+                                            .coerceIn(0f, (tabs.size - 1).toFloat())
+                                    },
+                                    onHorizontalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        dragIndex = (dragIndex + dragAmount / slotStepPx)
+                                            .coerceIn(0f, (tabs.size - 1).toFloat())
+                                    },
+                                    onDragEnd = {
+                                        val target = dragIndex.roundToInt().coerceIn(0, tabs.size - 1)
+                                        isDragging = false
+                                        if (target != currentSelectedTab) {
+                                            currentOnSelectTab(target)
+                                        }
+                                    },
+                                    onDragCancel = {
+                                        isDragging = false
                                     }
-                                },
-                                onDragCancel = {
-                                    isDragging = false
-                                }
-                            )
-                        },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                                )
+                            },
+                        horizontalArrangement = Arrangement.spacedBy(spacingDp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                     tabs.forEachIndexed { index, item ->
                         val distance = abs(animatedIndex - index.toFloat())
                         val isActive = distance < 0.5f
@@ -698,13 +735,19 @@ fun LiquidGlassNavBottomBar(
             }
         }
 
-        CircularCrystalComposeButton(
-            accentColor = accentColor,
-            hazeState = hazeState,
-            backdropLayer = backdropLayer,
-            backdropOriginInRoot = backdropOriginInRoot,
-            onClick = onComposeClick
-        )
+            if (showComposeButton) {
+                CircularCrystalComposeButton(
+                    accentColor = accentColor,
+                    hazeState = hazeState,
+                    backdropLayer = backdropLayer,
+                    backdropOriginInRoot = backdropOriginInRoot,
+                    sizeDp = (56f * heightScale.coerceIn(0.85f, 1.25f)).dp,
+                    opacity = opacity,
+                    rimBrightness = rimBrightness,
+                    onClick = onComposeClick
+                )
+            }
+        }
     }
 }
 
@@ -714,11 +757,14 @@ private fun CircularCrystalComposeButton(
     hazeState: HazeState,
     backdropLayer: GraphicsLayer?,
     backdropOriginInRoot: Offset,
+    sizeDp: Dp = 56.dp,
+    opacity: Float = 0.22f,
+    rimBrightness: Float = 0.45f,
     onClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
-            .size(56.dp)
+            .size(sizeDp)
             .clip(CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
@@ -728,9 +774,11 @@ private fun CircularCrystalComposeButton(
                 backdropLayer = backdropLayer,
                 backdropOriginInRoot = backdropOriginInRoot,
                 shape = CircleShape,
-                cornerRadiusDp = 28f,
+                cornerRadiusDp = sizeDp.value * 0.5f,
                 accentColor = accentColor,
                 expandProgress = 0f,
+                opacity = opacity,
+                rimBrightness = rimBrightness,
                 modifier = Modifier.fillMaxSize()
             )
         } else {
@@ -741,18 +789,18 @@ private fun CircularCrystalComposeButton(
                     .hazeChild(
                         state = hazeState,
                         style = HazeDefaults.style(
-                            backgroundColor = Color(0x1F000000),
+                            backgroundColor = Color.Black.copy(alpha = opacity),
                             blurRadius = 4.dp,
-                            tint = HazeTint(Color(0x14FFFFFF))
+                            tint = HazeTint(Color.White.copy(alpha = (opacity * 0.35f).coerceAtMost(0.18f)))
                         )
                     )
                     .border(
                         width = 1.dp,
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.55f),
-                                Color.White.copy(alpha = 0.14f),
-                                Color.White.copy(alpha = 0.34f)
+                                Color.White.copy(alpha = rimBrightness),
+                                Color.White.copy(alpha = rimBrightness * 0.28f),
+                                Color.White.copy(alpha = rimBrightness * 0.62f)
                             )
                         ),
                         shape = CircleShape

@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -71,7 +72,12 @@ data class UserPreferences(
     val driveBackupTreeUri: String? = null,
     val driveBackupFolderName: String? = null,
     val lastDriveBackupAt: Long = 0L,
-    val lastSyncTimestamp: Long = 0L
+    val lastSyncTimestamp: Long = 0L,
+    val glassBarHeightPercent: Int = 100,
+    val glassBarMaxWidthPercent: Int = 100,
+    val glassBarButtonSpacingDp: Int = 4,
+    val glassBarOpacityPercent: Int = 22,
+    val glassBarRimBrightnessPercent: Int = 45
 )
 
 class UserPreferencesRepository(private val context: Context) {
@@ -94,6 +100,11 @@ class UserPreferencesRepository(private val context: Context) {
         val DRIVE_FOLDER_NAME = stringPreferencesKey("drive_folder_name")
         val LAST_DRIVE_BACKUP_AT = longPreferencesKey("last_drive_backup_at")
         val LAST_SYNC = longPreferencesKey("last_sync")
+        val GLASS_HEIGHT_PCT = intPreferencesKey("glass_height_pct")
+        val GLASS_MAX_WIDTH_PCT = intPreferencesKey("glass_max_width_pct")
+        val GLASS_BTN_SPACING_DP = intPreferencesKey("glass_btn_spacing_dp")
+        val GLASS_OPACITY_PCT = intPreferencesKey("glass_opacity_pct")
+        val GLASS_RIM_BRIGHTNESS_PCT = intPreferencesKey("glass_rim_brightness_pct")
     }
 
     val preferences: Flow<UserPreferences> = context.dataStore.data.map { prefs ->
@@ -126,7 +137,12 @@ class UserPreferencesRepository(private val context: Context) {
             driveBackupTreeUri = prefs[Keys.DRIVE_TREE_URI],
             driveBackupFolderName = prefs[Keys.DRIVE_FOLDER_NAME],
             lastDriveBackupAt = prefs[Keys.LAST_DRIVE_BACKUP_AT] ?: 0L,
-            lastSyncTimestamp = prefs[Keys.LAST_SYNC] ?: 0L
+            lastSyncTimestamp = prefs[Keys.LAST_SYNC] ?: 0L,
+            glassBarHeightPercent = (prefs[Keys.GLASS_HEIGHT_PCT] ?: 100).coerceIn(80, 135),
+            glassBarMaxWidthPercent = (prefs[Keys.GLASS_MAX_WIDTH_PCT] ?: 100).coerceIn(65, 100),
+            glassBarButtonSpacingDp = (prefs[Keys.GLASS_BTN_SPACING_DP] ?: 4).coerceIn(0, 24),
+            glassBarOpacityPercent = (prefs[Keys.GLASS_OPACITY_PCT] ?: 22).coerceIn(0, 100),
+            glassBarRimBrightnessPercent = (prefs[Keys.GLASS_RIM_BRIGHTNESS_PCT] ?: 45).coerceIn(0, 100)
         )
     }
 
@@ -200,5 +216,21 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun setLastSyncTimestamp(timestamp: Long) {
         context.dataStore.edit { it[Keys.LAST_SYNC] = timestamp }
+    }
+
+    suspend fun setGlassNavStyle(
+        heightPercent: Int,
+        maxWidthPercent: Int,
+        buttonSpacingDp: Int,
+        opacityPercent: Int,
+        rimBrightnessPercent: Int
+    ) {
+        context.dataStore.edit {
+            it[Keys.GLASS_HEIGHT_PCT] = heightPercent.coerceIn(80, 135)
+            it[Keys.GLASS_MAX_WIDTH_PCT] = maxWidthPercent.coerceIn(65, 100)
+            it[Keys.GLASS_BTN_SPACING_DP] = buttonSpacingDp.coerceIn(0, 24)
+            it[Keys.GLASS_OPACITY_PCT] = opacityPercent.coerceIn(0, 100)
+            it[Keys.GLASS_RIM_BRIGHTNESS_PCT] = rimBrightnessPercent.coerceIn(0, 100)
+        }
     }
 }

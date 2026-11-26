@@ -21,11 +21,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Info
@@ -37,9 +40,11 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -49,6 +54,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -56,18 +64,27 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.nextext.sms.BuildConfig
 import com.nextext.sms.data.local.BlockedSenderEntity
 import com.nextext.sms.data.preferences.AutoBackupFrequency
@@ -76,6 +93,11 @@ import com.nextext.sms.data.preferences.PitchBlackAccent
 import com.nextext.sms.data.preferences.SwipeAction
 import com.nextext.sms.data.preferences.ThemeMode
 import com.nextext.sms.data.preferences.UserPreferences
+import com.nextext.sms.ui.components.LiquidGlassNavBottomBar
+import com.nextext.sms.ui.components.LiquidGlassTabItem
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.haze
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,6 +116,7 @@ fun SettingsScreen(
     onSetShowOtpNotification: (Boolean) -> Unit,
     onSetShowQuickReplies: (Boolean) -> Unit = {},
     onSetSwapMenuBarPositions: (Boolean) -> Unit = {},
+    onSetGlassNavStyle: (Int, Int, Int, Int, Int) -> Unit = { _, _, _, _, _ -> },
     onSetGroupMessagingMode: (GroupMessagingMode) -> Unit = {},
     onSetSwipeLeftAction: (SwipeAction) -> Unit = {},
     onSetSwipeRightAction: (SwipeAction) -> Unit = {},
@@ -112,6 +135,7 @@ fun SettingsScreen(
     var showGroupDialog by remember { mutableStateOf(false) }
     var showSwipeDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
+    var showGlassStyleDialog by remember { mutableStateOf(false) }
 
     val isPitchBlack = !preferences.useMaterial3Design && preferences.themeMode == ThemeMode.PITCH_BLACK
     val bgColor = if (isPitchBlack) Color.Black else MaterialTheme.colorScheme.background
@@ -523,6 +547,42 @@ fun SettingsScreen(
                                     )
                                 }
                             }
+                            Spacer(Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color.White.copy(alpha = 0.06f))
+                                    .border(
+                                        width = 0.6.dp,
+                                        color = Color.White.copy(alpha = 0.14f),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                                    .clickable { showGlassStyleDialog = true }
+                                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Tune,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Glass navigation bar size and style",
+                                        color = textColor,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = "Height ${preferences.glassBarHeightPercent}% • Width ${preferences.glassBarMaxWidthPercent}% • Opacity ${preferences.glassBarOpacityPercent}% • Rim ${preferences.glassBarRimBrightnessPercent}%",
+                                        color = subTextColor,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
                         } else {
                             ToggleRow(
                                 title = "Material You Dynamic Color",
@@ -700,6 +760,283 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(onClick = { showSwipeDialog = false }) { Text("Done") }
             }
+        )
+    }
+
+    if (showGlassStyleDialog) {
+        GlassNavStyleDialog(
+            initialHeightPercent = preferences.glassBarHeightPercent,
+            initialMaxWidthPercent = preferences.glassBarMaxWidthPercent,
+            initialButtonSpacingDp = preferences.glassBarButtonSpacingDp,
+            initialOpacityPercent = preferences.glassBarOpacityPercent,
+            initialRimBrightnessPercent = preferences.glassBarRimBrightnessPercent,
+            accentColor = MaterialTheme.colorScheme.primary,
+            onDismiss = { showGlassStyleDialog = false },
+            onConfirm = { h, w, s, o, r ->
+                onSetGlassNavStyle(h, w, s, o, r)
+                showGlassStyleDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun GlassNavStyleDialog(
+    initialHeightPercent: Int,
+    initialMaxWidthPercent: Int,
+    initialButtonSpacingDp: Int,
+    initialOpacityPercent: Int,
+    initialRimBrightnessPercent: Int,
+    accentColor: Color,
+    onDismiss: () -> Unit,
+    onConfirm: (Int, Int, Int, Int, Int) -> Unit
+) {
+    var heightPercent by remember { mutableIntStateOf(initialHeightPercent) }
+    var maxWidthPercent by remember { mutableIntStateOf(initialMaxWidthPercent) }
+    var buttonSpacingDp by remember { mutableIntStateOf(initialButtonSpacingDp) }
+    var opacityPercent by remember { mutableIntStateOf(initialOpacityPercent) }
+    var rimBrightnessPercent by remember { mutableIntStateOf(initialRimBrightnessPercent) }
+    var previewTab by remember { mutableIntStateOf(0) }
+
+    val previewHazeState = remember { HazeState() }
+    val previewBackdropLayer = rememberGraphicsLayer()
+    var previewOriginInRoot by remember { mutableStateOf(Offset.Zero) }
+
+    val previewTabs = remember {
+        listOf(
+            LiquidGlassTabItem("Messages", Icons.Default.ChatBubble),
+            LiquidGlassTabItem("Reminders", Icons.Default.Notifications),
+            LiquidGlassTabItem("Finance", Icons.Default.CreditCard)
+        )
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            shape = RoundedCornerShape(24.dp),
+            color = Color(0xFF141418),
+            tonalElevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Glass navigation bar size and style",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(14.dp))
+
+                // Live Preview Container with Blue + Coral cards behind the Glass Nav Bar
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(142.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(Color(0xFF242529))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 14.dp, vertical = 14.dp)
+                            .onGloballyPositioned { coords ->
+                                previewOriginInRoot = coords.positionInRoot()
+                            }
+                            .drawWithContent {
+                                previewBackdropLayer.record {
+                                    this@drawWithContent.drawContent()
+                                }
+                                drawLayer(previewBackdropLayer)
+                            }
+                            .haze(state = previewHazeState),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1.15f)
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color(0xFF5A9BFF))
+                        )
+                        Box(
+                            modifier = Modifier
+                                .weight(0.85f)
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color(0xFFE57373))
+                        )
+                    }
+
+                    LiquidGlassNavBottomBar(
+                        selectedTab = previewTab,
+                        tabs = previewTabs,
+                        accentColor = accentColor,
+                        hazeState = previewHazeState,
+                        backdropLayer = previewBackdropLayer,
+                        backdropOriginInRoot = previewOriginInRoot,
+                        heightPercent = heightPercent,
+                        maxWidthPercent = maxWidthPercent,
+                        buttonSpacingDp = buttonSpacingDp,
+                        opacityPercent = opacityPercent,
+                        rimBrightnessPercent = rimBrightnessPercent,
+                        showComposeButton = false,
+                        onSelectTab = { previewTab = it },
+                        onComposeClick = {},
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 6.dp)
+                    )
+                }
+
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = "Buttons shown: ${previewTabs.size} of ${previewTabs.size}",
+                    color = Color(0xFFB4BAC6),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(Modifier.height(14.dp))
+
+                GlassStyleSliderRow(
+                    label = "Height",
+                    valueText = "$heightPercent%",
+                    value = heightPercent.toFloat(),
+                    valueRange = 80f..135f,
+                    onValueChange = { heightPercent = it.roundToInt() }
+                )
+                GlassStyleSliderRow(
+                    label = "Maximum width",
+                    valueText = "$maxWidthPercent%",
+                    value = maxWidthPercent.toFloat(),
+                    valueRange = 65f..100f,
+                    onValueChange = { maxWidthPercent = it.roundToInt() }
+                )
+                GlassStyleSliderRow(
+                    label = "Button spacing",
+                    valueText = "${buttonSpacingDp}dp",
+                    value = buttonSpacingDp.toFloat(),
+                    valueRange = 0f..24f,
+                    onValueChange = { buttonSpacingDp = it.roundToInt() }
+                )
+                GlassStyleSliderRow(
+                    label = "Opacity",
+                    valueText = "$opacityPercent%",
+                    value = opacityPercent.toFloat(),
+                    valueRange = 0f..100f,
+                    onValueChange = { opacityPercent = it.roundToInt() }
+                )
+                GlassStyleSliderRow(
+                    label = "Rim brightness",
+                    valueText = "$rimBrightnessPercent%",
+                    value = rimBrightnessPercent.toFloat(),
+                    valueRange = 0f..100f,
+                    onValueChange = { rimBrightnessPercent = it.roundToInt() }
+                )
+
+                Spacer(Modifier.height(14.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            heightPercent = 100
+                            maxWidthPercent = 100
+                            buttonSpacingDp = 4
+                            opacityPercent = 22
+                            rimBrightnessPercent = 45
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF3A3B40),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(50),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Reset", fontWeight = FontWeight.Medium)
+                    }
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF3A3B40),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(50),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Cancel", fontWeight = FontWeight.Medium)
+                    }
+                    Button(
+                        onClick = {
+                            onConfirm(
+                                heightPercent,
+                                maxWidthPercent,
+                                buttonSpacingDp,
+                                opacityPercent,
+                                rimBrightnessPercent
+                            )
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFF3F4F6),
+                            contentColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(50),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("OK", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GlassStyleSliderRow(
+    label: String,
+    valueText: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    onValueChange: (Float) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = valueText,
+                color = Color(0xFFD1D5DB),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = valueRange,
+            colors = SliderDefaults.colors(
+                thumbColor = Color.White,
+                activeTrackColor = Color(0xFF60A5FA),
+                inactiveTrackColor = Color(0xFF3F3F46)
+            ),
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
