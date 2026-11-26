@@ -250,10 +250,11 @@ private fun NexTextApp(
         if (uri != null) viewModel.importBackup(uri)
     }
 
+    val driveFolderContext = LocalContext.current
     val driveFolderLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
-        if (uri != null) viewModel.linkDriveFolder(context, uri)
+        if (uri != null) viewModel.linkDriveFolder(driveFolderContext, uri)
     }
 
     val requestAllPermissions = {
