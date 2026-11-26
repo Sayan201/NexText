@@ -698,15 +698,13 @@ fun LiquidGlassNavBottomBar(
             }
         }
 
-        if (!swapPositions) {
-            CircularCrystalComposeButton(
-                accentColor = accentColor,
-                hazeState = hazeState,
-                backdropLayer = backdropLayer,
-                backdropOriginInRoot = backdropOriginInRoot,
-                onClick = onComposeClick
-            )
-        }
+        CircularCrystalComposeButton(
+            accentColor = accentColor,
+            hazeState = hazeState,
+            backdropLayer = backdropLayer,
+            backdropOriginInRoot = backdropOriginInRoot,
+            onClick = onComposeClick
+        )
     }
 }
 
