@@ -1,5 +1,8 @@
 package com.nextext.sms.ui.components
 
+import android.graphics.RuntimeShader
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -45,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -61,6 +65,71 @@ import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeChild
 import kotlin.math.abs
 import kotlin.math.roundToInt
+
+/**
+ * AGSL Liquid Glass optical surface shader matching Zangetsu's liquidNavGlassSettings:
+ * - bodyMode: clear (alpha 0.12)
+ * - fresnelStrength: 0.55
+ * - rimLight: 0.12, rimShade: 0.45, rimShadeEnds: 0.10
+ * - bodyShade: 0.12, glowIntensity: 0.12, ambientStrength: 0.06
+ */
+private const val LIQUID_GLASS_AGSL = """
+uniform float2 uSize;
+uniform float uRadius;
+uniform float4 uAccent;
+uniform float uExpand;
+
+float sdRoundedBox(float2 p, float2 b, float r) {
+    float2 q = abs(p) - b + float2(r);
+    return min(max(q.x, q.y), 0.0) + length(max(q, float2(0.0))) - r;
+}
+
+half4 main(float2 fragCoord) {
+    float2 halfSize = uSize * 0.5;
+    float2 p = fragCoord - halfSize;
+    float r = min(uRadius, min(halfSize.x, halfSize.y));
+    float d = sdRoundedBox(p, halfSize, r);
+
+    if (d > 0.0) {
+        return half4(0.0);
+    }
+
+    float2 eps = float2(1.5, 0.0);
+    float2 n = normalize(float2(
+        sdRoundedBox(p + eps.xy, halfSize, r) - sdRoundedBox(p - eps.xy, halfSize, r),
+        sdRoundedBox(p + eps.yx, halfSize, r) - sdRoundedBox(p - eps.yx, halfSize, r)
+    ));
+
+    // Distance inward from rim
+    float distIn = -d;
+    float thickness = 26.0;
+    float edgeRatio = clamp(distIn / thickness, 0.0, 1.0);
+
+    // Fresnel rim curve (fresnelStrength = 0.55)
+    float fresnel = pow(1.0 - edgeRatio, 2.4) * (0.55 + 0.25 * uExpand);
+
+    // Directional top/bottom/end rim lighting (rimLight = 0.12, rimShade = 0.45, rimShadeEnds = 0.10)
+    float topRim = clamp(-n.y, 0.0, 1.0);
+    float bottomRim = clamp(n.y, 0.0, 1.0);
+    float endRim = clamp(abs(n.x), 0.0, 1.0);
+
+    float crispRim = smoothstep(3.2, 0.0, distIn);
+    float specular = crispRim * (0.38 * topRim + 0.26 * bottomRim + 0.10 * endRim + 0.35 * uExpand);
+
+    // Upper-right caustic accent glow
+    float2 causticCenter = float2(halfSize.x * 0.55, -halfSize.y * 0.35);
+    float causticDist = length(p - causticCenter) / max(halfSize.x, 1.0);
+    float caustic = smoothstep(0.95, 0.0, causticDist) * (0.12 + 0.18 * uExpand);
+
+    // Clear body shade + ambient strength
+    float bodyAlpha = 0.12 + 0.12 * (1.0 - edgeRatio) + 0.08 * uExpand;
+    float3 baseCol = float3(0.04, 0.05, 0.07) * (1.0 - 0.5 * edgeRatio);
+    float3 glassCol = baseCol + uAccent.rgb * caustic + float3(1.0) * (fresnel * 0.28 + specular);
+
+    float outAlpha = clamp(bodyAlpha + fresnel * 0.32 + specular * 0.65, 0.0, 0.92);
+    return half4(glassCol * outAlpha, outAlpha);
+}
+"""
 
 /**
  * Ambient top glow for Pitch Black AMOLED mode (defaults to Cyan).
@@ -172,12 +241,38 @@ fun TopCategoryFilterTabs(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+@Composable
+private fun LiquidGlassShaderOverlay(
+    cornerRadiusDp: Float,
+    accentColor: Color,
+    expandProgress: Float,
+    modifier: Modifier = Modifier
+) {
+    val shader = remember { RuntimeShader(LIQUID_GLASS_AGSL) }
+    val density = LocalDensity.current
+    Canvas(modifier = modifier) {
+        val radiusPx = with(density) { cornerRadiusDp.dp.toPx() }
+        shader.setFloatUniform("uSize", size.width, size.height)
+        shader.setFloatUniform("uRadius", radiusPx)
+        shader.setFloatUniform(
+            "uAccent",
+            accentColor.red,
+            accentColor.green,
+            accentColor.blue,
+            accentColor.alpha
+        )
+        shader.setFloatUniform("uExpand", expandProgress)
+        drawRect(brush = ShaderBrush(shader))
+    }
+}
+
 /**
- * Zangetsu-style crystal clear 3D liquid glass bottom capsule:
- * - Left: Crystal frosted glass capsule with a 3D convex liquid-glass lens indicator
- *   (specular top/bottom bevel, inner caustic highlight, and Haze backdrop refraction)
- *   that expands outward while switching/dragging and glides continuously across tabs.
- * - Right: Separate circular 3D crystal liquid-glass New Message button.
+ * 1-to-1 port of Zangetsu's lower liquid glass capsule + right circular button:
+ * - Left: 60.dp capsule (30.dp corner radius), horizontal padding 4.dp, blur 3-4.dp,
+ *   AGSL optical Fresnel & specular glass shader, continuous spring-sliding indicator
+ *   with 8.dp horizontal/vertical indicatorExpansion and 1.08x magnification.
+ * - Right: 56.dp circular crystal glass New Message button separated by an 8.dp gap.
  */
 @Composable
 fun LiquidGlassNavBottomBar(
@@ -195,11 +290,10 @@ fun LiquidGlassNavBottomBar(
         Triple(2, "Finance", Icons.Default.CreditCard)
     )
 
-    val capsuleShape = RoundedCornerShape(34.dp)
-    val pillShape = RoundedCornerShape(30.dp)
+    val capsuleShape = RoundedCornerShape(30.dp)
+    val pillShape = RoundedCornerShape(26.dp)
     val density = LocalDensity.current
 
-    // Keep latest callbacks/state inside pointerInput so sliding back from Finance/Reminders always works
     val currentOnSelectTab by rememberUpdatedState(onSelectTab)
     val currentSelectedTab by rememberUpdatedState(selectedTab)
 
@@ -212,51 +306,36 @@ fun LiquidGlassNavBottomBar(
             dampingRatio = 0.72f,
             stiffness = Spring.StiffnessMediumLow
         ),
-        label = "crystalPillSlide"
+        label = "zangetsuSlide"
     )
 
     val isSwitching = isDragging || abs(animatedIndex - selectedTab.toFloat()) > 0.04f
 
-    val lensScaleX by animateFloatAsState(
-        targetValue = if (isSwitching) 1.22f else 1.0f,
-        animationSpec = spring(
-            dampingRatio = 0.65f,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "crystalScaleX"
-    )
-    val lensScaleY by animateFloatAsState(
-        targetValue = if (isSwitching) 1.44f else 1.0f,
-        animationSpec = spring(
-            dampingRatio = 0.65f,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "crystalScaleY"
-    )
-    val lensCrystalAlpha by animateFloatAsState(
+    val expandProgress by animateFloatAsState(
         targetValue = if (isSwitching) 1f else 0f,
         animationSpec = spring(
-            dampingRatio = 0.8f,
+            dampingRatio = 0.68f,
             stiffness = Spring.StiffnessMedium
         ),
-        label = "crystalAlpha"
+        label = "zangetsuExpand"
     )
 
+    // Zangetsu exact parameters: barHeight = 60, borderRadius = 30, button = 56, gap = 8, padding = 12
     Row(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Left: Crystal Clear Navigation Capsule
+        // Left: Crystal Clear Navigation Capsule (60.dp)
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(62.dp)
+                .height(60.dp)
         ) {
-            // 1. Crystal frosted glass capsule background
+            // 1. Clipped crystal backdrop (blur 3-4.dp like Zangetsu extraBlur: 3) + AGSL glass shader
             Box(
                 modifier = Modifier
                     .matchParentSize()
@@ -264,105 +343,115 @@ fun LiquidGlassNavBottomBar(
                     .hazeChild(
                         state = hazeState,
                         style = HazeDefaults.style(
-                            backgroundColor = Color(0x14FFFFFF),
-                            blurRadius = 11.dp,
-                            tint = HazeTint(Color(0x14000000))
+                            backgroundColor = Color(0x1F000000),
+                            blurRadius = 4.dp,
+                            tint = HazeTint(Color(0x14FFFFFF))
                         )
                     )
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.14f),
-                                Color.White.copy(alpha = 0.03f),
-                                Color.Black.copy(alpha = 0.18f)
-                            )
-                        )
+            ) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    LiquidGlassShaderOverlay(
+                        cornerRadiusDp = 30f,
+                        accentColor = accentColor,
+                        expandProgress = 0f,
+                        modifier = Modifier.fillMaxSize()
                     )
-                    .border(
-                        width = 1.dp,
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.45f),
-                                Color.White.copy(alpha = 0.12f),
-                                Color.White.copy(alpha = 0.28f)
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = 0.14f),
+                                        Color(0x1F000000),
+                                        Color.Black.copy(alpha = 0.18f)
+                                    )
+                                )
                             )
-                        ),
-                        shape = capsuleShape
+                            .border(
+                                width = 1.dp,
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = 0.45f),
+                                        Color.White.copy(alpha = 0.12f),
+                                        Color.White.copy(alpha = 0.28f)
+                                    )
+                                ),
+                                shape = capsuleShape
+                            )
                     )
-            )
+                }
+            }
 
-            // 2. Unclipped foreground layer for 3D expanding liquid glass droplet & tab items
+            // 2. Unclipped foreground layer for Zangetsu indicatorExpansion (8.dp H & V) + tabs
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 5.dp, vertical = 5.dp)
+                    .padding(horizontal = 4.dp)
             ) {
                 val slotWidth = maxWidth / tabs.size
                 val slotWidthPx = with(density) { slotWidth.toPx() }
+                val expandPx = with(density) { (8.dp * expandProgress).toPx() }
 
-                // 3D Convex Crystal Glass Lens Indicator (matches close-up reference photo)
+                // Expanding 3D Liquid Glass Lens (expands 8.dp outward on every side while switching)
                 Box(
                     modifier = Modifier
+                        .align(Alignment.CenterStart)
                         .offset {
                             IntOffset(
-                                x = (animatedIndex * slotWidthPx).roundToInt(),
+                                x = (animatedIndex * slotWidthPx - expandPx).roundToInt(),
                                 y = 0
                             )
                         }
-                        .width(slotWidth)
-                        .height(52.dp)
-                        .graphicsLayer {
-                            scaleX = lensScaleX
-                            scaleY = lensScaleY
-                        }
+                        .width(slotWidth + (16.dp * expandProgress))
+                        .height(52.dp + (16.dp * expandProgress))
                         .clip(pillShape)
                         .hazeChild(
                             state = hazeState,
                             style = HazeDefaults.style(
-                                backgroundColor = Color(0x20000000),
-                                blurRadius = 14.dp,
-                                tint = HazeTint(Color(0x30000000))
+                                backgroundColor = Color(0x1F000000),
+                                blurRadius = 6.dp,
+                                tint = HazeTint(accentColor.copy(alpha = 0.14f * (1f - 0.5f * expandProgress)))
                             )
                         )
-                        // Base dark-crystal refractive body
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.24f * lensCrystalAlpha + 0.08f),
-                                    Color(0x5506080D),
-                                    accentColor.copy(alpha = 0.22f * (1f - 0.4f * lensCrystalAlpha)),
-                                    Color(0x6605060A),
-                                    Color.White.copy(alpha = 0.16f * lensCrystalAlpha + 0.04f)
+                ) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        LiquidGlassShaderOverlay(
+                            cornerRadiusDp = 26f,
+                            accentColor = accentColor,
+                            expandProgress = expandProgress,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.16f * expandProgress + 0.06f),
+                                            accentColor.copy(alpha = 0.14f),
+                                            Color.White.copy(alpha = 0.10f * expandProgress + 0.04f)
+                                        )
+                                    )
                                 )
-                            )
-                        )
-                        // Top-right caustic glass glow (like the cyan/teal reflection in the photo)
-                        .background(
-                            Brush.radialGradient(
-                                colors = listOf(
-                                    accentColor.copy(alpha = 0.30f * lensCrystalAlpha + 0.10f),
-                                    Color.Transparent
-                                ),
-                                center = Offset(slotWidthPx * 0.78f, 18f),
-                                radius = slotWidthPx * 0.75f
-                            )
-                        )
-                        // 3D Convex Bevel Rim (bright white top & bottom highlights, subtle sides)
-                        .border(
-                            width = (1.0f + 0.6f * lensCrystalAlpha).dp,
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.42f + 0.48f * lensCrystalAlpha),
-                                    Color.White.copy(alpha = 0.14f + 0.12f * lensCrystalAlpha),
-                                    Color.White.copy(alpha = 0.08f),
-                                    Color.White.copy(alpha = 0.30f + 0.42f * lensCrystalAlpha)
+                                .border(
+                                    width = (1f + 0.5f * expandProgress).dp,
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.40f + 0.45f * expandProgress),
+                                            Color.White.copy(alpha = 0.14f),
+                                            Color.White.copy(alpha = 0.28f + 0.40f * expandProgress)
+                                        )
+                                    ),
+                                    shape = pillShape
                                 )
-                            ),
-                            shape = pillShape
                         )
-                )
+                    }
+                }
 
-                // Tab items row + bidirectional continuous horizontal drag scrubbing
+                // Tab items row + bidirectional continuous drag scrubber
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
@@ -395,11 +484,18 @@ fun LiquidGlassNavBottomBar(
                     tabs.forEach { (index, label, icon) ->
                         val distance = abs(animatedIndex - index.toFloat())
                         val isActive = distance < 0.5f
+                        // Zangetsu magnification = 1.08f on active tab during transition
+                        val itemScale = if (isActive) 1f + 0.08f * expandProgress else 1f
 
                         Column(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(52.dp)
+                                .padding(horizontal = 2.dp)
+                                .graphicsLayer {
+                                    scaleX = itemScale
+                                    scaleY = itemScale
+                                }
                                 .clip(pillShape)
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
@@ -412,8 +508,8 @@ fun LiquidGlassNavBottomBar(
                                 Icon(
                                     imageVector = icon,
                                     contentDescription = label,
-                                    tint = if (isActive) accentColor else Color(0xFFE5E7EB),
-                                    modifier = Modifier.size(21.dp)
+                                    tint = if (isActive) accentColor else Color.White,
+                                    modifier = Modifier.size(22.dp)
                                 )
                                 if (index == 0 && unreadMessagesCount > 0) {
                                     Box(
@@ -425,12 +521,12 @@ fun LiquidGlassNavBottomBar(
                                     )
                                 }
                             }
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.height(4.dp))
                             Text(
                                 text = label,
-                                fontSize = 11.sp,
-                                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isActive) Color.White else Color(0xFFD1D5DB),
+                                fontSize = 10.sp,
+                                fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
+                                color = if (isActive) Color.White else Color(0xFFB4BAC6),
                                 maxLines = 1
                             )
                         }
@@ -439,58 +535,60 @@ fun LiquidGlassNavBottomBar(
             }
         }
 
-        // Right: Separate Circular 3D Crystal Liquid-Glass New Message Button (matches photo)
+        // Right: Separate Circular Crystal Glass New Message Button (56.dp, matches Zangetsu GlassButton)
         Box(
             modifier = Modifier
-                .size(62.dp)
+                .size(56.dp)
                 .clip(CircleShape)
                 .hazeChild(
                     state = hazeState,
                     style = HazeDefaults.style(
-                        backgroundColor = Color(0x20000000),
-                        blurRadius = 12.dp,
-                        tint = HazeTint(Color(0x30000000))
+                        backgroundColor = Color(0x1F000000),
+                        blurRadius = 4.dp,
+                        tint = HazeTint(Color(0x14FFFFFF))
                     )
-                )
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.18f),
-                            Color(0x6605070B),
-                            Color(0x88020305),
-                            Color.White.copy(alpha = 0.08f)
-                        )
-                    )
-                )
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            accentColor.copy(alpha = 0.22f),
-                            Color.Transparent
-                        ),
-                        center = Offset(44f, 16f),
-                        radius = 52f
-                    )
-                )
-                .border(
-                    width = 1.1.dp,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.58f),
-                            Color.White.copy(alpha = 0.14f),
-                            Color.White.copy(alpha = 0.34f)
-                        )
-                    ),
-                    shape = CircleShape
                 )
                 .clickable(onClick = onComposeClick),
             contentAlignment = Alignment.Center
         ) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                LiquidGlassShaderOverlay(
+                    cornerRadiusDp = 28f,
+                    accentColor = accentColor,
+                    expandProgress = 0.25f,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.16f),
+                                    Color(0x28000000),
+                                    Color.White.copy(alpha = 0.08f)
+                                )
+                            )
+                        )
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.55f),
+                                    Color.White.copy(alpha = 0.14f),
+                                    Color.White.copy(alpha = 0.34f)
+                                )
+                            ),
+                            shape = CircleShape
+                        )
+                )
+            }
             Icon(
                 imageVector = Icons.Default.Edit,
                 contentDescription = "New message",
                 tint = Color.White,
-                modifier = Modifier.size(23.dp)
+                modifier = Modifier.size(22.dp)
             )
         }
     }
