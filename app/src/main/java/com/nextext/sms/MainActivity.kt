@@ -47,7 +47,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import android.content.ActivityNotFoundException
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -58,7 +57,6 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -250,6 +248,12 @@ private fun NexTextApp(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) viewModel.importBackup(uri)
+    }
+
+    val driveFolderLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) viewModel.linkDriveFolder(context, uri)
     }
 
     val requestAllPermissions = {
@@ -528,31 +532,10 @@ private fun NexTextApp(
                     onImportBackup = {
                         importBackupLauncher.launch(arrayOf("application/json", "*/*"))
                     },
-                    onBackupToGoogleDrive = {
-                        viewModel.prepareDriveBackupFile(context.cacheDir) { file ->
-                            val uri = FileProvider.getUriForFile(
-                                context,
-                                "${context.packageName}.fileprovider",
-                                file
-                            )
-                            val driveIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "application/json"
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                putExtra(Intent.EXTRA_SUBJECT, file.name)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                setPackage("com.google.android.apps.docs")
-                            }
-                            try {
-                                context.startActivity(driveIntent)
-                            } catch (_: ActivityNotFoundException) {
-                                driveIntent.setPackage(null)
-                                context.startActivity(Intent.createChooser(driveIntent, "Back up to Google Drive"))
-                            }
-                        }
-                    },
-                    onRestoreFromGoogleDrive = {
-                        importBackupLauncher.launch(arrayOf("application/json", "*/*"))
-                    },
+                    onBackupToGoogleDrive = { viewModel.backupToDriveNow(context) },
+                    onRestoreFromGoogleDrive = { viewModel.restoreFromDrive(context) },
+                    onLinkDriveFolder = { driveFolderLauncher.launch(null) },
+                    onUnlinkDriveFolder = { viewModel.unlinkDriveFolder(context) },
                     onUnblockSender = viewModel::unblockSender
                 )
             }

@@ -103,6 +103,8 @@ fun SettingsScreen(
     onImportBackup: () -> Unit,
     onBackupToGoogleDrive: () -> Unit = {},
     onRestoreFromGoogleDrive: () -> Unit = {},
+    onLinkDriveFolder: () -> Unit = {},
+    onUnlinkDriveFolder: () -> Unit = {},
     onUnblockSender: (String) -> Unit
 ) {
     val context = LocalContext.current
@@ -232,7 +234,12 @@ fun SettingsScreen(
                 SettingsRowItem(
                     icon = Icons.Default.CloudUpload,
                     title = "Backup & restore",
-                    trailingText = if (preferences.autoBackupFrequency == AutoBackupFrequency.OFF) "Drive & Local" else "Auto: ${preferences.autoBackupFrequency.label}",
+                    trailingText = when {
+                        preferences.autoBackupFrequency != AutoBackupFrequency.OFF ->
+                            "Auto: ${preferences.autoBackupFrequency.label}"
+                        preferences.driveBackupTreeUri != null -> "Drive linked"
+                        else -> "Drive & Local"
+                    },
                     textColor = textColor,
                     subTextColor = subTextColor,
                     onClick = {
@@ -260,15 +267,53 @@ fun SettingsScreen(
                             }
                         }
                         Text(
-                            "Saves a periodic backup locally (and syncs via Android's Google Drive device backup when enabled).",
+                            "Writes one JSON file into the linked Google Drive folder on this schedule, overwriting the previous one. The Drive app performs the sync, so Android's device-backup toggle is not involved.",
                             style = MaterialTheme.typography.bodySmall,
                             color = subTextColor
                         )
+                        if (preferences.autoBackupFrequency != AutoBackupFrequency.OFF &&
+                            preferences.driveBackupTreeUri == null
+                        ) {
+                            Text(
+                                "No Drive folder linked yet — the schedule has nowhere to write.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFE0A030)
+                            )
+                        }
                         Spacer(Modifier.height(2.dp))
                         Text("Google Drive Backup", color = textColor, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Button(onClick = onBackupToGoogleDrive) { Text("Back up to Drive") }
-                            OutlinedButton(onClick = onRestoreFromGoogleDrive) { Text("Restore Drive") }
+                        if (preferences.driveBackupTreeUri == null) {
+                            Text(
+                                "Pick a folder in your Google Drive once. NexText keeps a single file there and overwrites it every run, so backups never stack — not on the phone, not in Drive.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = subTextColor
+                            )
+                            Button(onClick = onLinkDriveFolder) { Text("Choose Drive folder") }
+                        } else {
+                            val lastUpload = if (preferences.lastDriveBackupAt > 0L) {
+                                java.text.SimpleDateFormat(
+                                    "d MMM yyyy, h:mm a",
+                                    java.util.Locale.getDefault()
+                                ).format(java.util.Date(preferences.lastDriveBackupAt))
+                            } else null
+                            Text(
+                                "Folder: ${preferences.driveBackupFolderName ?: "Linked folder"}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = textColor
+                            )
+                            Text(
+                                if (lastUpload != null) "Last upload: $lastUpload" else "No upload yet",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = subTextColor
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Button(onClick = onBackupToGoogleDrive) { Text("Back up now") }
+                                OutlinedButton(onClick = onRestoreFromGoogleDrive) { Text("Restore") }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                OutlinedButton(onClick = onLinkDriveFolder) { Text("Change folder") }
+                                OutlinedButton(onClick = onUnlinkDriveFolder) { Text("Unlink") }
+                            }
                         }
                         Spacer(Modifier.height(2.dp))
                         Text("Local JSON Backup", color = textColor, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)

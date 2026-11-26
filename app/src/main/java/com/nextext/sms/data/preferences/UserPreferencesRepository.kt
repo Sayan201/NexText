@@ -68,6 +68,9 @@ data class UserPreferences(
     val swipeLeftAction: SwipeAction = SwipeAction.ARCHIVE,
     val swipeRightAction: SwipeAction = SwipeAction.DELETE,
     val autoBackupFrequency: AutoBackupFrequency = AutoBackupFrequency.OFF,
+    val driveBackupTreeUri: String? = null,
+    val driveBackupFolderName: String? = null,
+    val lastDriveBackupAt: Long = 0L,
     val lastSyncTimestamp: Long = 0L
 )
 
@@ -87,6 +90,9 @@ class UserPreferencesRepository(private val context: Context) {
         val SWIPE_LEFT = stringPreferencesKey("swipe_left")
         val SWIPE_RIGHT = stringPreferencesKey("swipe_right")
         val AUTO_BACKUP_FREQ = stringPreferencesKey("auto_backup_freq")
+        val DRIVE_TREE_URI = stringPreferencesKey("drive_tree_uri")
+        val DRIVE_FOLDER_NAME = stringPreferencesKey("drive_folder_name")
+        val LAST_DRIVE_BACKUP_AT = longPreferencesKey("last_drive_backup_at")
         val LAST_SYNC = longPreferencesKey("last_sync")
     }
 
@@ -117,6 +123,9 @@ class UserPreferencesRepository(private val context: Context) {
             autoBackupFrequency = prefs[Keys.AUTO_BACKUP_FREQ]?.let {
                 runCatching { AutoBackupFrequency.valueOf(it) }.getOrDefault(AutoBackupFrequency.OFF)
             } ?: AutoBackupFrequency.OFF,
+            driveBackupTreeUri = prefs[Keys.DRIVE_TREE_URI],
+            driveBackupFolderName = prefs[Keys.DRIVE_FOLDER_NAME],
+            lastDriveBackupAt = prefs[Keys.LAST_DRIVE_BACKUP_AT] ?: 0L,
             lastSyncTimestamp = prefs[Keys.LAST_SYNC] ?: 0L
         )
     }
@@ -171,6 +180,22 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun setAutoBackupFrequency(freq: AutoBackupFrequency) {
         context.dataStore.edit { it[Keys.AUTO_BACKUP_FREQ] = freq.name }
+    }
+
+    suspend fun setDriveBackupTreeUri(uri: String?) {
+        context.dataStore.edit { prefs ->
+            if (uri == null) prefs.remove(Keys.DRIVE_TREE_URI) else prefs[Keys.DRIVE_TREE_URI] = uri
+        }
+    }
+
+    suspend fun setDriveBackupFolderName(name: String?) {
+        context.dataStore.edit { prefs ->
+            if (name == null) prefs.remove(Keys.DRIVE_FOLDER_NAME) else prefs[Keys.DRIVE_FOLDER_NAME] = name
+        }
+    }
+
+    suspend fun setLastDriveBackupAt(timestamp: Long) {
+        context.dataStore.edit { it[Keys.LAST_DRIVE_BACKUP_AT] = timestamp }
     }
 
     suspend fun setLastSyncTimestamp(timestamp: Long) {

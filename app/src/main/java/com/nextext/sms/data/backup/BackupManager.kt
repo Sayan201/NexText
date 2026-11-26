@@ -83,56 +83,70 @@ class BackupManager(
         encodeDefaults = true
     }
 
+    private suspend fun buildPayload(): NexTextBackupPayload {
+        val messages = database.messageDao().getAllActiveMessages().map {
+            BackupMessage(
+                systemSmsId = it.systemSmsId,
+                threadId = it.threadId,
+                address = it.address,
+                normalizedAddress = it.normalizedAddress,
+                contactName = it.contactName,
+                body = it.body,
+                timestamp = it.timestamp,
+                isIncoming = it.isIncoming,
+                isRead = it.isRead,
+                subId = it.subId,
+                category = it.category.name,
+                isStarred = it.isStarred,
+                isArchived = it.isArchived
+            )
+        }
+        val reminders = database.reminderDao().getAllReminders().map {
+            BackupReminder(
+                title = it.title,
+                description = it.description,
+                amount = it.amount,
+                currency = it.currency,
+                dueTimestamp = it.dueTimestamp,
+                kind = it.kind.name,
+                isCompleted = it.isCompleted,
+                notifyEnabled = it.notifyEnabled
+            )
+        }
+        val blocked = database.senderRuleDao().getAllBlockedSenders()
+        val overrides = database.senderRuleDao().getAllOverrides().map {
+            BackupCategoryOverride(it.normalizedAddress, it.category.name)
+        }
+
+        return NexTextBackupPayload(
+            messages = messages,
+            reminders = reminders,
+            blockedSenders = blocked.map {
+                BackupBlockedSender(it.normalizedAddress, it.displayAddress, it.blockedAt)
+            },
+            categoryOverrides = overrides
+        )
+    }
+
+    suspend fun exportToBytes(): Result<ByteArray> = withContext(Dispatchers.IO) {
+        runCatching { json.encodeToString(buildPayload()).toByteArray(Charsets.UTF_8) }
+    }
+
     suspend fun exportToUri(uri: Uri): Result<Int> = withContext(Dispatchers.IO) {
         runCatching {
-            val messages = database.messageDao().getAllActiveMessages().map {
-                BackupMessage(
-                    systemSmsId = it.systemSmsId,
-                    threadId = it.threadId,
-                    address = it.address,
-                    normalizedAddress = it.normalizedAddress,
-                    contactName = it.contactName,
-                    body = it.body,
-                    timestamp = it.timestamp,
-                    isIncoming = it.isIncoming,
-                    isRead = it.isRead,
-                    subId = it.subId,
-                    category = it.category.name,
-                    isStarred = it.isStarred,
-                    isArchived = it.isArchived
-                )
-            }
-            val reminders = database.reminderDao().getAllReminders().map {
-                BackupReminder(
-                    title = it.title,
-                    description = it.description,
-                    amount = it.amount,
-                    currency = it.currency,
-                    dueTimestamp = it.dueTimestamp,
-                    kind = it.kind.name,
-                    isCompleted = it.isCompleted,
-                    notifyEnabled = it.notifyEnabled
-                )
-            }
-            val blocked = database.senderRuleDao().getAllBlockedSenders()
-            val overrides = database.senderRuleDao().getAllOverrides().map {
-                BackupCategoryOverride(it.normalizedAddress, it.category.name)
-            }
-
-            val payload = NexTextBackupPayload(
-                messages = messages,
-                reminders = reminders,
-                blockedSenders = blocked.map {
-                    BackupBlockedSender(it.normalizedAddress, it.displayAddress, it.blockedAt)
-                },
-                categoryOverrides = overrides
-            )
-            val serialized = json.encodeToString(payload)
+            val payload = buildPayload()
+            val bytes = json.encodeToString(payload).toByteArray(Charsets.UTF_8)
             context.contentResolver.openOutputStream(uri)?.use { stream ->
-                stream.write(serialized.toByteArray(Charsets.UTF_8))
+                stream.write(bytes)
                 stream.flush()
             } ?: error("Unable to open destination file for backup")
-            messages.size
+            payload.messages.size
+        }
+    }
+
+    suspend fun importFromBytes(bytes: ByteArray): Result<Int> = withContext(Dispatchers.IO) {
+        runCatching {
+            importPayload(json.decodeFromString<NexTextBackupPayload>(bytes.decodeToString()))
         }
     }
 
@@ -141,9 +155,12 @@ class BackupManager(
             val content = context.contentResolver.openInputStream(uri)?.use {
                 it.bufferedReader(Charsets.UTF_8).readText()
             } ?: error("Unable to read backup file")
+            importPayload(json.decodeFromString<NexTextBackupPayload>(content))
+        }
+    }
 
-            val payload = json.decodeFromString<NexTextBackupPayload>(content)
-
+    private suspend fun importPayload(payload: NexTextBackupPayload): Int {
+        return runCatching {
             payload.blockedSenders.forEach {
                 database.senderRuleDao().blockSender(
                     BlockedSenderEntity(it.normalizedAddress, it.displayAddress, it.blockedAt)
@@ -252,7 +269,7 @@ class BackupManager(
             }
 
             importedCount
-        }
+        }.getOrThrow()
     }
 }
 

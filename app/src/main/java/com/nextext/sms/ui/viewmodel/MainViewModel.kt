@@ -1,10 +1,12 @@
 package com.nextext.sms.ui.viewmodel
 
+import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.nextext.sms.AppContainer
+import com.nextext.sms.data.backup.DriveFolderBackup
 import com.nextext.sms.data.local.BlockedSenderEntity
 import com.nextext.sms.data.local.MessageEntity
 import com.nextext.sms.data.local.ReminderEntity
@@ -30,9 +32,12 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Calendar
 
 enum class InboxFilter {
@@ -435,13 +440,99 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    fun prepareDriveBackupFile(cacheDir: java.io.File, onReady: (java.io.File) -> Unit) {
+    /**
+     * Binds the Drive folder picked in the system folder chooser. The folder URI is the
+     * account binding: whichever Google account was selected in the picker is the one the
+     * Drive app syncs this folder through, and we never see or store an account id.
+     */
+    fun linkDriveFolder(context: android.content.Context, uri: Uri) {
         viewModelScope.launch {
-            val backupDir = java.io.File(cacheDir, "backups").apply { mkdirs() }
-            val file = java.io.File(backupDir, "nextext-backup-${System.currentTimeMillis()}.json")
-            backupManager.exportToUri(Uri.fromFile(file))
-                .onSuccess { onReady(file) }
-                .onFailure { err -> _snackbarMessage.value = "Drive backup failed: ${err.localizedMessage}" }
+            val persisted = withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                            Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                    )
+                }.isSuccess
+            }
+            if (!persisted) {
+                _snackbarMessage.value = "Could not keep access to that folder"
+                return@launch
+            }
+            val name = withContext(Dispatchers.IO) {
+                DriveFolderBackup.queryFolderName(context, uri)
+            }
+            prefsRepo.setDriveBackupTreeUri(uri.toString())
+            prefsRepo.setDriveBackupFolderName(name ?: "Drive folder")
+            if (prefsRepo.preferences.first().autoBackupFrequency != AutoBackupFrequency.OFF) {
+                AutoBackupWorker.runOnce(context)
+            }
+            _snackbarMessage.value = "Linked: ${name ?: "Drive folder"}"
+        }
+    }
+
+    fun unlinkDriveFolder(context: android.content.Context) {
+        viewModelScope.launch {
+            val stored = prefsRepo.preferences.first().driveBackupTreeUri
+            if (stored != null) {
+                withContext(Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.releasePersistableUriPermission(
+                            Uri.parse(stored),
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                                Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                        )
+                    }
+                }
+            }
+            prefsRepo.setDriveBackupTreeUri(null)
+            prefsRepo.setDriveBackupFolderName(null)
+            _snackbarMessage.value = "Drive folder unlinked"
+        }
+    }
+
+    fun backupToDriveNow(context: android.content.Context) {
+        viewModelScope.launch {
+            val tree = prefsRepo.preferences.first().driveBackupTreeUri?.let(Uri::parse)
+            if (tree == null) {
+                _snackbarMessage.value = "Choose a Drive folder first"
+                return@launch
+            }
+            val bytes = backupManager.exportToBytes().getOrElse { err ->
+                _snackbarMessage.value = "Backup failed: ${err.localizedMessage}"
+                return@launch
+            }
+            withContext(Dispatchers.IO) { DriveFolderBackup.write(context, tree, bytes) }
+                .onSuccess {
+                    prefsRepo.setLastDriveBackupAt(System.currentTimeMillis())
+                    _snackbarMessage.value = "Backed up to Drive"
+                }
+                .onFailure { err ->
+                    _snackbarMessage.value =
+                        "Drive backup failed: ${err.localizedMessage ?: "re-link the folder"}"
+                }
+        }
+    }
+
+    fun restoreFromDrive(context: android.content.Context) {
+        viewModelScope.launch {
+            val tree = prefsRepo.preferences.first().driveBackupTreeUri?.let(Uri::parse)
+            if (tree == null) {
+                _snackbarMessage.value = "Choose a Drive folder first"
+                return@launch
+            }
+            val bytes = withContext(Dispatchers.IO) { DriveFolderBackup.read(context, tree) }
+                .getOrElse { err ->
+                    _snackbarMessage.value =
+                        "Drive restore failed: ${err.localizedMessage ?: "no backup found"}"
+                    return@launch
+                }
+            backupManager.importFromBytes(bytes)
+                .onSuccess { count -> _snackbarMessage.value = "Restored $count messages from Drive" }
+                .onFailure { err ->
+                    _snackbarMessage.value = "Drive restore failed: ${err.localizedMessage}"
+                }
         }
     }
 
