@@ -77,7 +77,8 @@ data class UserPreferences(
     val glassBarMaxWidthPercent: Int = 100,
     val glassBarButtonSpacingDp: Int = 4,
     val glassBarOpacityPercent: Int = 22,
-    val glassBarRimBrightnessPercent: Int = 45
+    val glassBarRimBrightnessPercent: Int = 45,
+    val dismissedUpdateVersion: String? = null
 )
 
 class UserPreferencesRepository(private val context: Context) {
@@ -105,6 +106,7 @@ class UserPreferencesRepository(private val context: Context) {
         val GLASS_BTN_SPACING_DP = intPreferencesKey("glass_btn_spacing_dp")
         val GLASS_OPACITY_PCT = intPreferencesKey("glass_opacity_pct")
         val GLASS_RIM_BRIGHTNESS_PCT = intPreferencesKey("glass_rim_brightness_pct")
+        val DISMISSED_UPDATE_VERSION = stringPreferencesKey("dismissed_update_version")
     }
 
     val preferences: Flow<UserPreferences> = context.dataStore.data.map { prefs ->
@@ -142,7 +144,8 @@ class UserPreferencesRepository(private val context: Context) {
             glassBarMaxWidthPercent = (prefs[Keys.GLASS_MAX_WIDTH_PCT] ?: 100).coerceIn(65, 100),
             glassBarButtonSpacingDp = (prefs[Keys.GLASS_BTN_SPACING_DP] ?: 4).coerceIn(0, 24),
             glassBarOpacityPercent = (prefs[Keys.GLASS_OPACITY_PCT] ?: 22).coerceIn(0, 100),
-            glassBarRimBrightnessPercent = (prefs[Keys.GLASS_RIM_BRIGHTNESS_PCT] ?: 45).coerceIn(0, 100)
+            glassBarRimBrightnessPercent = (prefs[Keys.GLASS_RIM_BRIGHTNESS_PCT] ?: 45).coerceIn(0, 100),
+            dismissedUpdateVersion = prefs[Keys.DISMISSED_UPDATE_VERSION]
         )
     }
 
@@ -231,6 +234,16 @@ class UserPreferencesRepository(private val context: Context) {
             it[Keys.GLASS_BTN_SPACING_DP] = buttonSpacingDp.coerceIn(0, 24)
             it[Keys.GLASS_OPACITY_PCT] = opacityPercent.coerceIn(0, 100)
             it[Keys.GLASS_RIM_BRIGHTNESS_PCT] = rimBrightnessPercent.coerceIn(0, 100)
+        }
+    }
+
+    suspend fun setDismissedUpdateVersion(version: String?) {
+        context.dataStore.edit { prefs ->
+            if (version.isNullOrBlank()) {
+                prefs.remove(Keys.DISMISSED_UPDATE_VERSION)
+            } else {
+                prefs[Keys.DISMISSED_UPDATE_VERSION] = version
+            }
         }
     }
 }

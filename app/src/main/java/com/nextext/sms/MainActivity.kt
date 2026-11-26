@@ -69,6 +69,7 @@ import com.nextext.sms.domain.model.MessageCategory
 import com.nextext.sms.sms.NotificationHelper
 import com.nextext.sms.ui.components.LiquidGlassNavBottomBar
 import com.nextext.sms.ui.components.LiquidGlassTabItem
+import com.nextext.sms.ui.components.UpdateFlyoutDialog
 import com.nextext.sms.ui.screens.ComposeScreen
 import com.nextext.sms.ui.screens.FinanceScreen
 import com.nextext.sms.ui.screens.InboxScreen
@@ -225,6 +226,7 @@ private fun NexTextApp(
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val contacts by viewModel.contactSuggestions.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -427,7 +429,10 @@ private fun NexTextApp(
                             launchSingleTop = true
                             restoreState = true
                         }
-                    }
+                    },
+                    showUpdateCapsule = updateState.availableUpdate != null &&
+                        prefs.dismissedUpdateVersion == updateState.availableUpdate?.version,
+                    onOpenUpdatePopup = viewModel::openUpdatePopup
                 )
             }
 
@@ -538,7 +543,9 @@ private fun NexTextApp(
                     onRestoreFromGoogleDrive = { viewModel.restoreFromDrive(context) },
                     onLinkDriveFolder = { driveFolderLauncher.launch(null) },
                     onUnlinkDriveFolder = { viewModel.unlinkDriveFolder(context) },
-                    onUnblockSender = viewModel::unblockSender
+                    onUnblockSender = viewModel::unblockSender,
+                    isCheckingUpdates = updateState.isChecking,
+                    onCheckForUpdates = { viewModel.checkForUpdates(userInitiated = true) }
                 )
             }
 
@@ -740,6 +747,17 @@ private fun NexTextApp(
                     }
                 },
                 onComposeClick = { navController.navigate(Routes.composeRoute()) }
+            )
+        }
+
+        val pendingUpdate = updateState.availableUpdate
+        if (updateState.showPopup && pendingUpdate != null) {
+            UpdateFlyoutDialog(
+                update = pendingUpdate,
+                state = updateState,
+                onDownloadAndInstall = { viewModel.downloadAndInstallUpdate(context) },
+                onCancel = viewModel::cancelUpdatePopup,
+                onDontShowAgain = viewModel::dontShowUpdateAgain
             )
         }
         }

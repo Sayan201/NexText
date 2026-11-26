@@ -1,12 +1,17 @@
 package com.nextext.sms.ui.viewmodel
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.nextext.sms.AppContainer
+import com.nextext.sms.BuildConfig
 import com.nextext.sms.data.backup.DriveFolderBackup
+import com.nextext.sms.update.AppUpdateRelease
+import com.nextext.sms.update.AppUpdater
+import java.io.File
 import com.nextext.sms.data.local.BlockedSenderEntity
 import com.nextext.sms.data.local.MessageEntity
 import com.nextext.sms.data.local.ReminderEntity
@@ -68,6 +73,15 @@ data class FinanceDashboardState(
     val transactions: List<TransactionEntity> = emptyList()
 )
 
+data class UpdateUiState(
+    val isChecking: Boolean = false,
+    val availableUpdate: AppUpdateRelease? = null,
+    val showPopup: Boolean = false,
+    val isDownloading: Boolean = false,
+    val downloadProgress: Int = 0,
+    val downloadedApkPath: String? = null
+)
+
 class MainViewModel(private val container: AppContainer) : ViewModel() {
 
     private val repo = container.smsRepository
@@ -106,6 +120,13 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
 
     private val _snackbarMessage = MutableStateFlow<String?>(null)
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+
+    private val _updateState = MutableStateFlow(UpdateUiState())
+    val updateState: StateFlow<UpdateUiState> = _updateState.asStateFlow()
+
+    init {
+        checkForUpdates(userInitiated = false)
+    }
 
     val preferences: StateFlow<UserPreferences> = prefsRepo.preferences.stateIn(
         viewModelScope,
@@ -614,6 +635,104 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
             spendByCategory = spendMap,
             transactions = list
         )
+    }
+
+    fun checkForUpdates(userInitiated: Boolean) {
+        if (_updateState.value.isChecking) return
+        viewModelScope.launch {
+            _updateState.value = _updateState.value.copy(isChecking = true)
+            val latest = AppUpdater.fetchLatestRelease()
+            if (latest == null) {
+                _updateState.value = _updateState.value.copy(isChecking = false)
+                if (userInitiated) {
+                    showMessage("Could not check for updates. Check your internet connection.")
+                }
+                return@launch
+            }
+
+            val isNewer = AppUpdater.isNewerVersion(latest.tagName, BuildConfig.VERSION_NAME)
+            if (isNewer) {
+                val dismissedVersion = prefsRepo.preferences.first().dismissedUpdateVersion
+                val shouldAutoShow = userInitiated || dismissedVersion != latest.version
+                _updateState.value = _updateState.value.copy(
+                    isChecking = false,
+                    availableUpdate = latest,
+                    showPopup = shouldAutoShow
+                )
+            } else {
+                _updateState.value = _updateState.value.copy(
+                    isChecking = false,
+                    availableUpdate = null,
+                    showPopup = false
+                )
+                if (userInitiated) {
+                    showMessage("You're on the latest version (v${BuildConfig.VERSION_NAME})")
+                }
+            }
+        }
+    }
+
+    fun openUpdatePopup() {
+        if (_updateState.value.availableUpdate != null) {
+            _updateState.value = _updateState.value.copy(showPopup = true)
+        }
+    }
+
+    fun cancelUpdatePopup() {
+        _updateState.value = _updateState.value.copy(showPopup = false)
+    }
+
+    fun dontShowUpdateAgain() {
+        val update = _updateState.value.availableUpdate ?: return
+        viewModelScope.launch {
+            prefsRepo.setDismissedUpdateVersion(update.version)
+            _updateState.value = _updateState.value.copy(showPopup = false)
+        }
+    }
+
+    fun downloadAndInstallUpdate(context: Context) {
+        val state = _updateState.value
+        val update = state.availableUpdate ?: return
+        if (state.isDownloading) return
+
+        // If already downloaded, just trigger install again (e.g. after granting unknown-sources permission)
+        val existingPath = state.downloadedApkPath
+        if (!existingPath.isNullOrBlank()) {
+            val existingFile = File(existingPath)
+            if (existingFile.exists()) {
+                val launched = AppUpdater.installApk(context, existingFile)
+                if (!launched) {
+                    showMessage("Allow 'Install unknown apps' for NexText, then tap Download & Install again.")
+                }
+                return
+            }
+        }
+
+        viewModelScope.launch {
+            _updateState.value = _updateState.value.copy(isDownloading = true, downloadProgress = 0)
+            val apkFile = AppUpdater.downloadApk(
+                context = context,
+                downloadUrl = update.downloadUrl,
+                version = update.version,
+                onProgress = { pct ->
+                    _updateState.value = _updateState.value.copy(downloadProgress = pct)
+                }
+            )
+            if (apkFile == null) {
+                _updateState.value = _updateState.value.copy(isDownloading = false, downloadProgress = 0)
+                showMessage("Failed to download update APK.")
+                return@launch
+            }
+            _updateState.value = _updateState.value.copy(
+                isDownloading = false,
+                downloadProgress = 100,
+                downloadedApkPath = apkFile.absolutePath
+            )
+            val launched = AppUpdater.installApk(context, apkFile)
+            if (!launched) {
+                showMessage("Allow 'Install unknown apps' for NexText, then tap Install again.")
+            }
+        }
     }
 
     class Factory(private val container: AppContainer) : ViewModelProvider.Factory {

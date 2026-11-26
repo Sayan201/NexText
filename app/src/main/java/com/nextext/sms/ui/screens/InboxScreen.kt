@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
@@ -129,7 +130,9 @@ fun InboxScreen(
     onMarkRead: (Long) -> Unit,
     onCopyOtp: (String) -> Unit,
     onNavigateToReminders: () -> Unit = {},
-    onNavigateToFinance: () -> Unit = {}
+    onNavigateToFinance: () -> Unit = {},
+    showUpdateCapsule: Boolean = false,
+    onOpenUpdatePopup: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var showTopOverflowMenu by remember { mutableStateOf(false) }
@@ -169,6 +172,33 @@ fun InboxScreen(
                         )
                     },
                     actions = {
+                        if (showUpdateCapsule) {
+                            Row(
+                                modifier = Modifier
+                                    .padding(end = 4.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(accentColor.copy(alpha = 0.16f))
+                                    .border(0.8.dp, accentColor.copy(alpha = 0.55f), RoundedCornerShape(50))
+                                    .clickable(onClick = onOpenUpdatePopup)
+                                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SystemUpdate,
+                                    contentDescription = "Update available",
+                                    tint = accentColor,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "Update",
+                                    color = if (!useMaterial3Design) Color.White else accentColor,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1
+                                )
+                            }
+                        }
                         IconButton(onClick = onOpenSearch) {
                             Icon(Icons.Default.Search, contentDescription = "Search")
                         }

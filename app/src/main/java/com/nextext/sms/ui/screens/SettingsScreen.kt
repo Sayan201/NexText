@@ -128,7 +128,9 @@ fun SettingsScreen(
     onRestoreFromGoogleDrive: () -> Unit = {},
     onLinkDriveFolder: () -> Unit = {},
     onUnlinkDriveFolder: () -> Unit = {},
-    onUnblockSender: (String) -> Unit
+    onUnblockSender: (String) -> Unit,
+    isCheckingUpdates: Boolean = false,
+    onCheckForUpdates: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var expandedSection by remember { mutableStateOf<String?>("theme") }
@@ -631,16 +633,10 @@ fun SettingsScreen(
                 SettingsRowItem(
                     icon = Icons.Default.SystemUpdate,
                     title = "Check for updates",
-                    trailingText = "GitHub",
+                    trailingText = if (isCheckingUpdates) "Checking..." else "v${BuildConfig.VERSION_NAME}",
                     textColor = textColor,
                     subTextColor = subTextColor,
-                    onClick = {
-                        val intent = Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("https://github.com/Sayan201/NexText/releases")
-                        )
-                        runCatching { context.startActivity(intent) }
-                    }
+                    onClick = onCheckForUpdates
                 )
                 HorizontalDivider(thickness = 0.6.dp, color = dividerColor)
             }
