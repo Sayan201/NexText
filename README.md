@@ -344,7 +344,7 @@ Yes — MIT licensed, source included. See <a href="LICENSE">LICENSE</a>.
 
 ---
 
-## 📜 Changelog
+## 🗒️ Changelog
 
 Full history in **[CHANGELOG.md](CHANGELOG.md)**.
 
