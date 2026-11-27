@@ -2,14 +2,15 @@
 
 All notable changes to NexText are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is [SemVer](https://semver.org/).
 
-## [1.6.2] — 2026-11-27
+## [1.6.4] — 2026-11-27
 
-### Added
-- **`github` and `fdroid` product flavors.** The `fdroid` flavor ships no `INTERNET` and no `REQUEST_INSTALL_PACKAGES` permission — the AppUpdater is replaced by an offline stub, so the F-Droid build carries zero network and zero self-install code.
-- **Fastlane metadata** under `fastlane/metadata/android/en-US/` — title, short and full descriptions, five phone screenshots, and per-versionCode changelogs.
+### Fixed
+- **The selection droplet leaves the capsule.** It was confined inside the glass slab; it now renders outside the bar's bounds. At rest it sits a little proud of the rim, and on tap, press or drag it inflates past the capsule's top and bottom edges on an overshooting spring (damping 0.42), so the bubble visibly pops out of the bar and settles back into it.
+- **In-app update asset selection** prefers `app-github-release.apk` and ignores any asset with `debug` in the name, so a release carrying both APKs can no longer hand a debug build to an install.
 
 ### Changed
-- CI builds and unit-tests both flavors (`testGithubDebugUnitTest`, `testFdroidDebugUnitTest`) and assembles both release variants.
+- The droplet's corner radius tracks its height, so the inflated state is a full stadium bubble instead of a stretched rounded rectangle.
+- The droplet is always present rather than fading out to a flat accent chip, so the selected destination reads as glass at rest as well as mid-switch.
 
 ## [1.6.3] — 2026-11-27
 
@@ -20,6 +21,15 @@ All notable changes to NexText are documented here. Format follows [Keep a Chang
 
 ### Removed
 - The icon scale-pop and indicator scale-pop guesses from 1.6.0/1.6.1 — the reference motion is the jelly lens, not a scale.
+
+## [1.6.2] — 2026-11-27
+
+### Added
+- **`github` and `fdroid` product flavors.** The `fdroid` flavor ships no `INTERNET` and no `REQUEST_INSTALL_PACKAGES` permission — the AppUpdater is replaced by an offline stub, so the F-Droid build carries zero network and zero self-install code.
+- **Fastlane metadata** under `fastlane/metadata/android/en-US/` — title, short and full descriptions, five phone screenshots, and per-versionCode changelogs.
+
+### Changed
+- CI builds and unit-tests both flavors (`testGithubDebugUnitTest`, `testFdroidDebugUnitTest`) and assembles both release variants.
 
 ## [1.6.1] — 2026-11-27
 

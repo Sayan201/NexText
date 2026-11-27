@@ -1,0 +1,2 @@
+- The selected-tab droplet now pops out of the navigation capsule instead of sitting inside it, and settles back with a bounce.
+- Update checks now always download the release APK, never a debug build.

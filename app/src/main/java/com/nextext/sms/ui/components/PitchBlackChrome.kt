@@ -549,6 +549,18 @@ fun LiquidGlassNavBottomBar(
         label = "liquidGlassExpand"
     )
 
+    // Droplet pop. Damping < 1 on purpose: the lens inflates past its target and
+    // settles back, so the bubble visibly escapes the capsule instead of easing
+    // flat inside it. This is the "pops out of the bar" read from the reference.
+    val popProgress by animateFloatAsState(
+        targetValue = if (isSwitching) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = 0.42f,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "dropletPop"
+    )
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -627,9 +639,17 @@ fun LiquidGlassNavBottomBar(
                     val totalSpacing = spacingDp * (tabs.size - 1).coerceAtLeast(0)
                     val slotWidth = ((maxWidth - totalSpacing) / tabs.size).coerceAtLeast(36.dp)
                     val slotStepPx = with(density) { (slotWidth + spacingDp).toPx() }
-                    val lensWidth = slotWidth * (1f + lensWidthDelta)
-                    val lensHeight = pillHeight * (1f + lensHeightDelta)
-                    val lensShiftPx = with(density) { ((lensWidth - slotWidth) / 2).toPx() }
+                    // Droplet geometry. It is deliberately NOT confined to the
+                    // capsule: at rest it already peeks past the rim, and while
+                    // pressed / dragged / travelling it swells taller than the bar
+                    // and lifts off it. Rendered outside the capsule bounds — no
+                    // clipping ancestor, so the bubble can leave the glass slab.
+                    val pop = popProgress.coerceIn(0f, 1.5f)
+                    val dropletWidth = slotWidth * (1.03f + lensWidthDelta.coerceAtMost(0.16f) + 0.05f * pop)
+                    val dropletHeight = capsuleHeight * (1.05f + 0.17f * pop) *
+                        (1f + lensHeightDelta).coerceAtLeast(0.88f)
+                    val dropletCorner = RoundedCornerShape(dropletHeight / 2f)
+                    val dropletLift = 1.dp + 4.dp * pop
 
                     // Resting indicator: the solid accent chip Zangetsu leaves
                     // under the selected tab (indicatorColor: accent @ 0.14).
@@ -648,61 +668,67 @@ fun LiquidGlassNavBottomBar(
                             .background(accentColor.copy(alpha = 0.14f))
                     )
 
-                    // Lifted selection lens. It dissolves in over the resting chip
-                    // while you press, drag or travel, stretches along the travel
-                    // direction, thins vertically, and squashes on the rebound —
-                    // the jelly motion from Zangetsu's IndicatorJellyPhysics.
-                    if (expandProgress > 0.01f) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .offset {
-                                    IntOffset(
-                                        x = (animatedIndex * slotStepPx - lensShiftPx).roundToInt(),
-                                        y = 0
-                                    )
-                                }
-                                .requiredSize(lensWidth, lensHeight)
-                                .graphicsLayer { alpha = expandProgress.coerceIn(0f, 1f) }
-                        ) {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
-                                RealRefractionGlassLayer(
-                                    backdropLayer = backdropLayer,
-                                    backdropOriginInRoot = backdropOriginInRoot,
-                                    shape = pillShape,
-                                    cornerRadiusDp = pillCorner.value * (lensHeight / pillHeight).let { it.coerceIn(0.7f, 1.3f) },
-                                    accentColor = accentColor,
-                                    expandProgress = expandProgress,
-                                    frost = frost,
-                                    rimBrightness = rimBrightness,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(pillShape)
-                                        .hazeChild(
-                                            state = hazeState,
-                                            style = HazeDefaults.style(
-                                                backgroundColor = Color.White.copy(alpha = 0.04f + 0.16f * frost),
-                                                blurRadius = (1f + 15f * frost).dp,
-                                                tint = HazeTint(Color.White.copy(alpha = 0.06f + 0.18f * frost))
-                                            )
-                                        )
-                                        .border(
-                                            width = (1f + 0.4f * expandProgress).dp,
-                                            brush = Brush.verticalGradient(
-                                                colors = listOf(
-                                                    Color.White.copy(alpha = (rimBrightness + 0.45f * expandProgress).coerceIn(0f, 1f)),
-                                                    Color.White.copy(alpha = rimBrightness * 0.32f),
-                                                    Color.White.copy(alpha = (rimBrightness * 0.65f + 0.40f * expandProgress).coerceIn(0f, 1f))
-                                                )
-                                            ),
-                                            shape = pillShape
-                                        )
+                    // Selection droplet. Always present, always slightly proud of
+                    // the capsule; on press / drag / travel it inflates past the
+                    // capsule edge and lifts away from it, stretches along the
+                    // travel direction, thins vertically, and squashes on the
+                    // rebound — Zangetsu's IndicatorJellyPhysics, rendered outside
+                    // the glass slab rather than clipped inside it.
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .offset {
+                                val wPx = dropletWidth.toPx()
+                                val hPx = dropletHeight.toPx()
+                                IntOffset(
+                                    x = (animatedIndex * slotStepPx - (wPx - slotWidth.toPx()) / 2f)
+                                        .roundToInt(),
+                                    y = (-(hPx - capsuleHeight.toPx()) / 2f - dropletLift.toPx())
+                                        .roundToInt()
                                 )
                             }
+                            .requiredSize(dropletWidth, dropletHeight)
+                            .graphicsLayer {
+                                alpha = (0.94f + 0.06f * pop).coerceIn(0f, 1f)
+                            }
+                    ) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
+                            RealRefractionGlassLayer(
+                                backdropLayer = backdropLayer,
+                                backdropOriginInRoot = backdropOriginInRoot,
+                                shape = dropletCorner,
+                                cornerRadiusDp = dropletHeight.value / 2f,
+                                accentColor = accentColor,
+                                expandProgress = (0.35f + 0.65f * pop).coerceIn(0f, 1f),
+                                frost = frost,
+                                rimBrightness = rimBrightness,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(dropletCorner)
+                                    .hazeChild(
+                                        state = hazeState,
+                                        style = HazeDefaults.style(
+                                            backgroundColor = Color.White.copy(alpha = 0.06f + 0.18f * frost),
+                                            blurRadius = (1f + 15f * frost).dp,
+                                            tint = HazeTint(Color.White.copy(alpha = 0.08f + 0.18f * frost))
+                                        )
+                                    )
+                                    .border(
+                                        width = (1f + 0.5f * pop).dp,
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color.White.copy(alpha = (rimBrightness + 0.30f * pop).coerceIn(0f, 1f)),
+                                                Color.White.copy(alpha = rimBrightness * 0.30f),
+                                                Color.White.copy(alpha = (rimBrightness * 0.70f + 0.25f * pop).coerceIn(0f, 1f))
+                                            )
+                                        ),
+                                        shape = dropletCorner
+                                    )
+                            )
                         }
                     }
 
