@@ -2,6 +2,11 @@
 
 All notable changes to NexText are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is [SemVer](https://semver.org/).
 
+## [1.6.1] — 2026-11-27
+
+### Fixed
+- Selector pop now fires on the actual tap (was keyed on the animation-derived active flag, so it rarely triggered). Icon springs 0.7 → 1.0 on selection, scales down to 0.82 while pressed, and the indicator chip pops 0.72 → 1.0.
+
 ## [1.6.0] — 2026-11-27
 
 ### Changed
