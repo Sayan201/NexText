@@ -50,6 +50,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -58,6 +59,7 @@ import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -169,13 +171,9 @@ half4 main(float2 fragCoord) {
     float bodyShade = smoothstep(-0.1, 1.0, p.y / max(halfSize.y, 1.0)) * 0.12;
     rgb *= (1.0 - bodyShade);
 
-    // Local capsule-rim pinch illusion inside the held droplet's curved edges only
-    if (uExpand > 0.05) {
-        float pinchedHalfH = halfSize.y * 0.72;
-        float capEdgeDist = abs(abs(p.y) - pinchedHalfH);
-        float capEdgeLine = smoothstep(2.4, 0.0, capEdgeDist) * (1.0 - smoothstep(0.0, 0.55, edgeRatio));
-        rgb += float3(1.0) * capEdgeLine * 0.22 * uExpand;
-    }
+    // No faked capsule rim here: the real capsule glass is composited into
+    // `contents` before this shader runs, so the droplet refracts the slab it
+    // sits on instead of painting an approximation of its edge.
 
     // Double-band 3D liquid glass bevel scaled by configurable rim brightness
     float rimMult = mix(uRim * 2.22, max(uRim * 2.22, 1.0), uExpand);
@@ -318,6 +316,8 @@ private fun RealRefractionGlassLayer(
     expandProgress: Float,
     frost: Float = 0.35f,
     rimBrightness: Float = 0.45f,
+    underlayLayer: GraphicsLayer? = null,
+    underlayPosInRoot: Offset = Offset.Zero,
     modifier: Modifier = Modifier
 ) {
     val shader = remember { RuntimeShader(LIQUID_GLASS_REFRACTION_AGSL) }
@@ -360,6 +360,18 @@ private fun RealRefractionGlassLayer(
         val offsetY = elementPosInRoot.y - backdropOriginInRoot.y
         translate(left = -offsetX, top = -offsetY) {
             drawLayer(backdropLayer)
+        }
+        // Composite the glass slab the droplet sits on top of the screen layer.
+        // It becomes part of `contents`, so the shader refracts the capsule's
+        // body and rim where they overlap — glass over glass, not an opaque
+        // bubble masking a bite out of the slab.
+        if (underlayLayer != null) {
+            translate(
+                left = underlayPosInRoot.x - elementPosInRoot.x,
+                top = underlayPosInRoot.y - elementPosInRoot.y
+            ) {
+                drawLayer(underlayLayer)
+            }
         }
     }
 }
@@ -477,6 +489,12 @@ fun LiquidGlassNavBottomBar(
     val pillShape = RoundedCornerShape(pillCorner)
     val density = LocalDensity.current
 
+    // The capsule's own glass, recorded into its own layer. The selection
+    // droplet samples it as part of its shader input, so a popped-out bubble
+    // refracts the slab underneath instead of hiding it.
+    val capsuleGlassLayer = rememberGraphicsLayer()
+    var capsuleOriginInRoot by remember { mutableStateOf(Offset.Zero) }
+
     val currentOnSelectTab by rememberUpdatedState(onSelectTab)
     val currentSelectedTab by rememberUpdatedState(selectedTab)
 
@@ -586,9 +604,18 @@ fun LiquidGlassNavBottomBar(
                     .weight(1f)
                     .height(capsuleHeight)
             ) {
-                // 1. Clipped capsule backdrop
+                // 1. Clipped capsule backdrop, recorded into its own layer so the
+                //    droplet can refract the glass it is sitting on.
                 Box(
-                    modifier = Modifier.matchParentSize()
+                    modifier = Modifier
+                        .matchParentSize()
+                        .onGloballyPositioned { capsuleOriginInRoot = it.positionInRoot() }
+                        .drawWithContent {
+                            capsuleGlassLayer.record {
+                                this@drawWithContent.drawContent()
+                            }
+                            drawLayer(capsuleGlassLayer)
+                        }
                 ) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
                         RealRefractionGlassLayer(
@@ -702,6 +729,8 @@ fun LiquidGlassNavBottomBar(
                                 expandProgress = (0.35f + 0.65f * pop).coerceIn(0f, 1f),
                                 frost = frost,
                                 rimBrightness = rimBrightness,
+                                underlayLayer = capsuleGlassLayer,
+                                underlayPosInRoot = capsuleOriginInRoot,
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else {

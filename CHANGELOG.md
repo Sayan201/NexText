@@ -6,6 +6,7 @@ All notable changes to NexText are documented here. Format follows [Keep a Chang
 
 ### Fixed
 - **The selection droplet leaves the capsule.** It was confined inside the glass slab; it now renders outside the bar's bounds. At rest it sits a little proud of the rim, and on tap, press or drag it inflates past the capsule's top and bottom edges on an overshooting spring (damping 0.42), so the bubble visibly pops out of the bar and settles back into it.
+- **The droplet now refracts the capsule itself.** The glass slab is recorded into its own layer and composited *under* the screen backdrop inside the droplet's shader input, so the capsule's body and rim bend through the bubble where the two overlap. Previously the droplet's only sample was the content behind the bar, so it swallowed a bite out of the capsule's outline.
 - **In-app update asset selection** prefers `app-github-release.apk` and ignores any asset with `debug` in the name, so a release carrying both APKs can no longer hand a debug build to an install.
 
 ### Changed
