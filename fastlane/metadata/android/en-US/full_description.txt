@@ -1,0 +1,11 @@
+NexText is a privacy-first, open-source default SMS app for Android that organizes your inbox on-device — with zero accounts, zero analytics, and zero network permissions in the F-Droid build.
+
+Features:
+* Smart On-Device Categorization: Automatically sorts SMS into Personal, Transactions, Promotions, and Spam (including Indian DLT headers like AD-HDFCBK, VK-SBIINB, AX-AXISBK), plus custom per-sender overrides, blocklists, Starred, and Archive.
+* 1-Tap OTP Copy & Auto-Clean: Extracts 4–8 digit verification codes with a Copy OTP action in notifications and conversations, plus optional 24-hour auto-cleanup.
+* HyperOS-Style Smart SMS Cards: Structured cards in conversations for Train, Flight & Movie tickets (with PNR, seat/coach, and Add to Calendar), OTPs, Banking Credit/Debit/Failed alerts, Bills/Recharges, and Delivery status.
+* Passbook & Expense Tracker: Extracts debits, credits, UPI payments, card spends, ATM withdrawals, account last-4 digits, and available balances into a monthly spend dashboard.
+* Reminders, Trips & Deliveries: Automatically extracts credit card bill due dates, EMIs, mobile recharges, IRCTC PNRs, flight bookings, and courier tracking updates.
+* Liquid Glass & Material 3 UI: Pitch Black AMOLED theme with an interactive Liquid Glass bottom bar (customizable height, width, button spacing, opacity, and rim brightness), Cyan default accent, and Swap Menu Bar Positions.
+* Offline Full-Text Search: Instant SQLite FTS4 search across all messages.
+* Backup & Restore: Export and restore messages, reminders, blocked senders, and category rules via Android's Storage Access Framework, with optional scheduled backups.

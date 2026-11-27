@@ -23,6 +23,16 @@ android {
         }
     }
 
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("github") {
+            dimension = "distribution"
+        }
+        create("fdroid") {
+            dimension = "distribution"
+        }
+    }
+
     signingConfigs {
         create("release") {
             val ksFile = System.getenv("KEYSTORE_FILE")

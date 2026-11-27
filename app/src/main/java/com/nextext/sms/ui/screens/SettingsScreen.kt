@@ -633,7 +633,11 @@ fun SettingsScreen(
                 SettingsRowItem(
                     icon = Icons.Default.SystemUpdate,
                     title = "Check for updates",
-                    trailingText = if (isCheckingUpdates) "Checking..." else "v${BuildConfig.VERSION_NAME}",
+                    trailingText = when {
+                        !com.nextext.sms.update.AppUpdater.isSupported -> "F-Droid"
+                        isCheckingUpdates -> "Checking..."
+                        else -> "v${BuildConfig.VERSION_NAME}"
+                    },
                     textColor = textColor,
                     subTextColor = subTextColor,
                     onClick = onCheckForUpdates

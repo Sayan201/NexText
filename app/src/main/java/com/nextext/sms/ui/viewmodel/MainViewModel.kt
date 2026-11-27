@@ -638,6 +638,12 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun checkForUpdates(userInitiated: Boolean) {
+        if (!AppUpdater.isSupported) {
+            if (userInitiated) {
+                showMessage("Updates are managed by F-Droid.")
+            }
+            return
+        }
         if (_updateState.value.isChecking) return
         viewModelScope.launch {
             _updateState.value = _updateState.value.copy(isChecking = true)

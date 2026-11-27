@@ -1,0 +1,1 @@
+Privacy-first smart SMS organizer with OTP copy, passbook, and reminders.

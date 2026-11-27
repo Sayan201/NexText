@@ -23,6 +23,8 @@ data class AppUpdateRelease(
 )
 
 object AppUpdater {
+    const val isSupported: Boolean = true
+
     private const val LATEST_RELEASE_API =
         "https://api.github.com/repos/Sayan201/NexText/releases/latest"
 

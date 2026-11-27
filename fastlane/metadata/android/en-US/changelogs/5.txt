@@ -1,0 +1,4 @@
+- Added HyperOS-style Smart SMS Cards for Train/Flight/Movie tickets, OTPs, Banking Credit/Debit/Failed alerts, Billing/Recharges, and Delivery status.
+- Added 85% centered contrasty SMS separator in the Inbox.
+- Added Glass navigation bar size and style customizer in Theme settings.
+- Added separate fdroid product flavor with zero INTERNET and zero REQUEST_INSTALL_PACKAGES permissions.
