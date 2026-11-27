@@ -30,7 +30,7 @@
 </a>
 &nbsp;
 <a href="#-screenshots">
-  <img src="https://img.shields.io/badge/%F0%9F%93%B8_SEE_IT_RUNNING-0A0F12?style=for-the-badge&logo=android&logoColor=06B6D4&labelColor=06B6D4" alt="Screenshots" height="44"/>
+  <img src="https://img.shields.io/badge/%F0%9F%93%B8_SEE_IT_RUNNING-06B6D4?style=for-the-badge&logo=android&logoColor=0A0F12" alt="See it running — screenshots" height="44"/>
 </a>
 
 <br/><br/>

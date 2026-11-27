@@ -83,11 +83,15 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      # Release assets are the signed release APK only. A debug APK in the
+      # release breaks the in-app updater: it is a different signing key, so an
+      # update that lands on it fails to install, and on older builds the asset
+      # picker would choose it over the release APK. Debug builds stay available
+      # as workflow artifacts above, never as release assets.
       - name: Publish GitHub Release on tag
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            app/build/outputs/apk/github/debug/app-github-debug.apk
             app/build/outputs/apk/github/release/*.apk
           generate_release_notes: true
