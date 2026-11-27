@@ -467,6 +467,19 @@ fun LiquidGlassNavBottomBar(
     val frost = (frostPercent.coerceIn(0, 100) / 100f)
     val rimBrightness = (rimBrightnessPercent.coerceIn(0, 100) / 100f)
 
+    // Pop the indicator itself on every selection change.
+    val indicatorPop = remember { androidx.compose.animation.core.Animatable(1f) }
+    androidx.compose.runtime.LaunchedEffect(selectedTab) {
+        indicatorPop.snapTo(0.72f)
+        indicatorPop.animateTo(
+            1f,
+            animationSpec = androidx.compose.animation.core.spring(
+                dampingRatio = 0.42f,
+                stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+            )
+        )
+    }
+
     val capsuleHeight = (60f * heightScale).dp
     val pillHeight = (52f * heightScale).dp
     val capsuleCorner = (30f * heightScale).dp
@@ -608,6 +621,10 @@ fun LiquidGlassNavBottomBar(
                             .width(slotWidth)
                             .height(pillHeight)
                             .clip(pillShape)
+                            .graphicsLayer {
+                                scaleX = indicatorPop.value
+                                scaleY = indicatorPop.value
+                            }
                             .background(accentColor.copy(alpha = 0.14f))
                             .border(
                                 width = 1.dp,
@@ -656,13 +673,15 @@ fun LiquidGlassNavBottomBar(
                     tabs.forEachIndexed { index, item ->
                         val distance = abs(animatedIndex - index.toFloat())
                         val isActive = distance < 0.5f
+                        val isSelected = selectedTab == index
                         val itemScale = if (isActive) 1f + 0.08f * expandProgress else 1f
+                        val isPressed = interactionSources[index].collectIsPressedAsState().value
 
                         // Spring "pop" on the icon when this tab becomes selected,
                         // matching Zangetsu's _DockPop (0.7 -> 1.0, easeOutBack).
                         val iconScale = remember { androidx.compose.animation.core.Animatable(1f) }
-                        androidx.compose.runtime.LaunchedEffect(isActive) {
-                            if (isActive) {
+                        androidx.compose.runtime.LaunchedEffect(isSelected) {
+                            if (isSelected) {
                                 iconScale.snapTo(0.7f)
                                 iconScale.animateTo(
                                     1f,
@@ -701,8 +720,9 @@ fun LiquidGlassNavBottomBar(
                                     modifier = Modifier
                                         .size(22.dp)
                                         .graphicsLayer {
-                                            scaleX = iconScale.value
-                                            scaleY = iconScale.value
+                                            val press = if (isPressed) 0.82f else 1f
+                                            scaleX = iconScale.value * press
+                                            scaleY = iconScale.value * press
                                         }
                                 )
                                 if (item.unreadCount > 0) {
