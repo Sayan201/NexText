@@ -2,6 +2,16 @@
 
 All notable changes to NexText are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is [SemVer](https://semver.org/).
 
+## [1.6.2] — 2026-11-27
+
+### Changed
+- **Selector is now a jelly lens, not a chip that sits.** Ported `IndicatorJellyPhysics` from the reference (measured from UIKit): the lifted lens dissolves in over the resting chip on press/drag/travel, stretches along the travel direction (+19% width, −10% height), and squashes/bulges on the rebound past the target. Velocity is sampled per frame from the sliding pill.
+- **Selected content magnifies 1.16×** while the lens is lifted, matching the reference's `magnification`.
+- **Frost slider now has a live swatch.** A 44 dp glass tile sits beside the descriptor and blurs "Aa" from sharp to milky as you drag, so the change is impossible to miss.
+
+### Removed
+- The icon scale-pop and indicator scale-pop guesses from 1.6.0/1.6.1 — the reference motion is the jelly lens, not a scale.
+
 ## [1.6.1] — 2026-11-27
 
 ### Fixed

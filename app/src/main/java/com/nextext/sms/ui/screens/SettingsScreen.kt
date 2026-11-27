@@ -70,6 +70,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -952,19 +953,26 @@ private fun GlassNavStyleDialog(
                     valueRange = 0f..100f,
                     onValueChange = { frostPercent = it.roundToInt() }
                 )
-                Text(
-                    text = when {
-                        frostPercent <= 10 -> "Crystal clear — pure refraction, no blur"
-                        frostPercent <= 40 -> "Light frost — keeps labels legible"
-                        frostPercent <= 75 -> "Frosted — glass reads as glass"
-                        else -> "Heavy frost — strong blur and lift"
-                    },
-                    color = Color(0xFFB4BAC6),
-                    fontSize = 11.sp,
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 4.dp, bottom = 6.dp)
-                )
+                        .padding(start = 2.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    FrostSwatch(frostPercent = frostPercent, modifier = Modifier.size(44.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        text = when {
+                            frostPercent <= 10 -> "Crystal clear — pure refraction, no blur"
+                            frostPercent <= 40 -> "Light frost — keeps labels legible"
+                            frostPercent <= 75 -> "Frosted — glass reads as glass"
+                            else -> "Heavy frost — strong blur and lift"
+                        },
+                        color = Color(0xFFB4BAC6),
+                        fontSize = 11.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
                 GlassStyleSliderRow(
                     label = "Rim brightness",
                     valueText = "$rimBrightnessPercent%",
@@ -1028,6 +1036,40 @@ private fun GlassNavStyleDialog(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun FrostSwatch(frostPercent: Int, modifier: Modifier = Modifier) {
+    val frost = (frostPercent.coerceIn(0, 100) / 100f)
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFF2E7BF6)),
+        contentAlignment = Alignment.Center
+    ) {
+        // Sharp text behind the glass: blurring it is the clearest read of frost.
+        Text(
+            text = "Aa",
+            color = Color.White,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Black,
+            modifier = Modifier.blur((frost * 6f).dp)
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(Color.White.copy(alpha = frost * 0.42f))
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .border(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = 0.18f + 0.32f * frost),
+                    shape = RoundedCornerShape(12.dp)
+                )
+        )
     }
 }
 

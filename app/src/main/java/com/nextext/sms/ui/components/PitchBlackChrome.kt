@@ -46,6 +46,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -467,18 +468,6 @@ fun LiquidGlassNavBottomBar(
     val frost = (frostPercent.coerceIn(0, 100) / 100f)
     val rimBrightness = (rimBrightnessPercent.coerceIn(0, 100) / 100f)
 
-    // Pop the indicator itself on every selection change.
-    val indicatorPop = remember { androidx.compose.animation.core.Animatable(1f) }
-    androidx.compose.runtime.LaunchedEffect(selectedTab) {
-        indicatorPop.snapTo(0.72f)
-        indicatorPop.animateTo(
-            1f,
-            animationSpec = androidx.compose.animation.core.spring(
-                dampingRatio = 0.42f,
-                stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
-            )
-        )
-    }
 
     val capsuleHeight = (60f * heightScale).dp
     val pillHeight = (52f * heightScale).dp
@@ -511,11 +500,43 @@ fun LiquidGlassNavBottomBar(
     val animatedIndex by animateFloatAsState(
         targetValue = if (isDragging) dragIndex else selectedTab.toFloat(),
         animationSpec = spring(
-            dampingRatio = 0.78f,
+            dampingRatio = 0.72f,
             stiffness = Spring.StiffnessMediumLow
         ),
         label = "liquidGlassSlide"
     )
+
+    // Frame-accurate velocity of the sliding pill. Drives the jelly deformation
+    // (travel stretch + landing squish) exactly like Zangetsu's
+    // IndicatorJellyPhysics: the leading edge races ahead and thins while the
+    // indicator lands with a bounce.
+    val currentIndex by rememberUpdatedState(animatedIndex)
+    val pillVelocity = remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(Unit) {
+        var prev = currentIndex
+        var prevNanos = withFrameNanos { it }
+        while (true) {
+            val nanos = withFrameNanos { it }
+            val dt = (nanos - prevNanos) / 1_000_000_000f
+            if (dt > 0.0001f) {
+                val instantaneous = (currentIndex - prev) / dt
+                val next = pillVelocity.floatValue * 0.55f + instantaneous * 0.45f
+                // Snap to zero so the jelly settles and the bar stops recomposing.
+                pillVelocity.floatValue = if (abs(next) < 0.06f) 0f else next
+            }
+            prev = currentIndex
+            prevNanos = nanos
+        }
+    }
+
+    val slideTarget = selectedTab.toFloat()
+    val slideVelocity = pillVelocity.floatValue
+    val slidingSpeed = abs(slideVelocity)
+    val approaching = (slideTarget - animatedIndex) * slideVelocity > 0f
+    val jelly = (slidingSpeed / 7.5f).coerceIn(0f, 1f)
+    // Travel: stretch along X, thin along Y. Rebound past the target: squash and bulge.
+    val lensWidthDelta = if (approaching) jelly * 0.19f else -jelly * 0.13f
+    val lensHeightDelta = if (approaching) -jelly * 0.10f else jelly * 0.11f
 
     val isSwitching = isDragging || isPressed || recentPressLatch || abs(animatedIndex - selectedTab.toFloat()) > 0.03f
 
@@ -606,9 +627,12 @@ fun LiquidGlassNavBottomBar(
                     val totalSpacing = spacingDp * (tabs.size - 1).coerceAtLeast(0)
                     val slotWidth = ((maxWidth - totalSpacing) / tabs.size).coerceAtLeast(36.dp)
                     val slotStepPx = with(density) { (slotWidth + spacingDp).toPx() }
-                    // Sliding selected-tab indicator — a modest accent chip, not a
-                    // glass droplet. The "pop" lives on the icon (spring scale
-                    // below), matching Zangetsu's indicatorColor: accent @ 0.14.
+                    val lensWidth = slotWidth * (1f + lensWidthDelta)
+                    val lensHeight = pillHeight * (1f + lensHeightDelta)
+                    val lensShiftPx = with(density) { ((lensWidth - slotWidth) / 2).toPx() }
+
+                    // Resting indicator: the solid accent chip Zangetsu leaves
+                    // under the selected tab (indicatorColor: accent @ 0.14).
                     Box(
                         modifier = Modifier
                             .align(Alignment.CenterStart)
@@ -621,23 +645,66 @@ fun LiquidGlassNavBottomBar(
                             .width(slotWidth)
                             .height(pillHeight)
                             .clip(pillShape)
-                            .graphicsLayer {
-                                scaleX = indicatorPop.value
-                                scaleY = indicatorPop.value
-                            }
                             .background(accentColor.copy(alpha = 0.14f))
-                            .border(
-                                width = 1.dp,
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.White.copy(alpha = rimBrightness * 0.6f),
-                                        Color.White.copy(alpha = rimBrightness * 0.15f),
-                                        Color.White.copy(alpha = rimBrightness * 0.4f)
-                                    )
-                                ),
-                                shape = pillShape
-                            )
                     )
+
+                    // Lifted selection lens. It dissolves in over the resting chip
+                    // while you press, drag or travel, stretches along the travel
+                    // direction, thins vertically, and squashes on the rebound —
+                    // the jelly motion from Zangetsu's IndicatorJellyPhysics.
+                    if (expandProgress > 0.01f) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .offset {
+                                    IntOffset(
+                                        x = (animatedIndex * slotStepPx - lensShiftPx).roundToInt(),
+                                        y = 0
+                                    )
+                                }
+                                .requiredSize(lensWidth, lensHeight)
+                                .graphicsLayer { alpha = expandProgress.coerceIn(0f, 1f) }
+                        ) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
+                                RealRefractionGlassLayer(
+                                    backdropLayer = backdropLayer,
+                                    backdropOriginInRoot = backdropOriginInRoot,
+                                    shape = pillShape,
+                                    cornerRadiusDp = pillCorner.value * (lensHeight / pillHeight).let { it.coerceIn(0.7f, 1.3f) },
+                                    accentColor = accentColor,
+                                    expandProgress = expandProgress,
+                                    frost = frost,
+                                    rimBrightness = rimBrightness,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(pillShape)
+                                        .hazeChild(
+                                            state = hazeState,
+                                            style = HazeDefaults.style(
+                                                backgroundColor = Color.White.copy(alpha = 0.04f + 0.16f * frost),
+                                                blurRadius = (1f + 15f * frost).dp,
+                                                tint = HazeTint(Color.White.copy(alpha = 0.06f + 0.18f * frost))
+                                            )
+                                        )
+                                        .border(
+                                            width = (1f + 0.4f * expandProgress).dp,
+                                            brush = Brush.verticalGradient(
+                                                colors = listOf(
+                                                    Color.White.copy(alpha = (rimBrightness + 0.45f * expandProgress).coerceIn(0f, 1f)),
+                                                    Color.White.copy(alpha = rimBrightness * 0.32f),
+                                                    Color.White.copy(alpha = (rimBrightness * 0.65f + 0.40f * expandProgress).coerceIn(0f, 1f))
+                                                )
+                                            ),
+                                            shape = pillShape
+                                        )
+                                )
+                            }
+                        }
+                    }
 
                     // Tab items row + bidirectional continuous drag scrubber
                     Row(
@@ -673,27 +740,8 @@ fun LiquidGlassNavBottomBar(
                     tabs.forEachIndexed { index, item ->
                         val distance = abs(animatedIndex - index.toFloat())
                         val isActive = distance < 0.5f
-                        val isSelected = selectedTab == index
-                        val itemScale = if (isActive) 1f + 0.08f * expandProgress else 1f
-                        val isPressed = interactionSources[index].collectIsPressedAsState().value
-
-                        // Spring "pop" on the icon when this tab becomes selected,
-                        // matching Zangetsu's _DockPop (0.7 -> 1.0, easeOutBack).
-                        val iconScale = remember { androidx.compose.animation.core.Animatable(1f) }
-                        androidx.compose.runtime.LaunchedEffect(isSelected) {
-                            if (isSelected) {
-                                iconScale.snapTo(0.7f)
-                                iconScale.animateTo(
-                                    1f,
-                                    animationSpec = androidx.compose.animation.core.spring(
-                                        dampingRatio = 0.4f,
-                                        stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
-                                    )
-                                )
-                            } else {
-                                iconScale.snapTo(1f)
-                            }
-                        }
+                        // The lens magnifies its content (Zangetsu: 1.16 natively).
+                        val itemScale = if (isActive) 1f + 0.16f * expandProgress else 1f
 
                         Column(
                             modifier = Modifier
@@ -717,13 +765,7 @@ fun LiquidGlassNavBottomBar(
                                     imageVector = item.icon,
                                     contentDescription = item.label,
                                     tint = if (isActive) accentColor else Color.White.copy(alpha = 0.82f),
-                                    modifier = Modifier
-                                        .size(22.dp)
-                                        .graphicsLayer {
-                                            val press = if (isPressed) 0.82f else 1f
-                                            scaleX = iconScale.value * press
-                                            scaleY = iconScale.value * press
-                                        }
+                                    modifier = Modifier.size(22.dp)
                                 )
                                 if (item.unreadCount > 0) {
                                     Box(
