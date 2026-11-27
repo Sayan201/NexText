@@ -4,6 +4,15 @@ All notable changes to NexText are documented here. Format follows [Keep a Chang
 
 ## [1.6.2] — 2026-11-27
 
+### Added
+- **`github` and `fdroid` product flavors.** The `fdroid` flavor ships no `INTERNET` and no `REQUEST_INSTALL_PACKAGES` permission — the AppUpdater is replaced by an offline stub, so the F-Droid build carries zero network and zero self-install code.
+- **Fastlane metadata** under `fastlane/metadata/android/en-US/` — title, short and full descriptions, five phone screenshots, and per-versionCode changelogs.
+
+### Changed
+- CI builds and unit-tests both flavors (`testGithubDebugUnitTest`, `testFdroidDebugUnitTest`) and assembles both release variants.
+
+## [1.6.3] — 2026-11-27
+
 ### Changed
 - **Selector is now a jelly lens, not a chip that sits.** Ported `IndicatorJellyPhysics` from the reference (measured from UIKit): the lifted lens dissolves in over the resting chip on press/drag/travel, stretches along the travel direction (+19% width, −10% height), and squashes/bulges on the rebound past the target. Velocity is sampled per frame from the sliding pill.
 - **Selected content magnifies 1.16×** while the lens is lifted, matching the reference's `magnification`.

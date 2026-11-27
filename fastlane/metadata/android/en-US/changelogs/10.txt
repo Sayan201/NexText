@@ -1,0 +1,3 @@
+- Nav selector is now a jelly lens: it stretches along the travel direction and squashes on landing instead of sitting as a flat chip.
+- Selected tab content magnifies 1.16x while the lens is lifted.
+- Frost slider has a live swatch that blurs live text so the 0-100% range is visible.
