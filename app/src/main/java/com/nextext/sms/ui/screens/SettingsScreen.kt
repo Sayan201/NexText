@@ -862,14 +862,32 @@ private fun GlassNavStyleDialog(
                                 .fillMaxSize()
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(Color(0xFF5A9BFF))
-                        )
+                        ) {
+                            Text(
+                                text = "NexText\nNexText\nNexText",
+                                color = Color.White.copy(alpha = 0.55f),
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Black,
+                                lineHeight = 18.sp,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
                         Box(
                             modifier = Modifier
                                 .weight(0.85f)
                                 .fillMaxSize()
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(Color(0xFFE57373))
-                        )
+                        ) {
+                            Text(
+                                text = "Aa Bb Cc\n123 456 789\n!@# \$%^",
+                                color = Color.White.copy(alpha = 0.6f),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                lineHeight = 16.sp,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
                     }
 
                     LiquidGlassNavBottomBar(
@@ -929,6 +947,19 @@ private fun GlassNavStyleDialog(
                     value = frostPercent.toFloat(),
                     valueRange = 0f..100f,
                     onValueChange = { frostPercent = it.roundToInt() }
+                )
+                Text(
+                    text = when {
+                        frostPercent <= 10 -> "Crystal clear — pure refraction, no blur"
+                        frostPercent <= 40 -> "Light frost — keeps labels legible"
+                        frostPercent <= 75 -> "Frosted — glass reads as glass"
+                        else -> "Heavy frost — strong blur and lift"
+                    },
+                    color = Color(0xFFB4BAC6),
+                    fontSize = 11.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 4.dp, bottom = 6.dp)
                 )
                 GlassStyleSliderRow(
                     label = "Rim brightness",
