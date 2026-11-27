@@ -676,7 +676,6 @@ fun LiquidGlassNavBottomBar(
                     val dropletHeight = capsuleHeight * (1.05f + 0.17f * pop) *
                         (1f + lensHeightDelta).coerceAtLeast(0.88f)
                     val dropletCorner = RoundedCornerShape(dropletHeight / 2f)
-                    val dropletLift = 1.dp + 4.dp * pop
 
                     // Resting indicator: the solid accent chip Zangetsu leaves
                     // under the selected tab (indicatorColor: accent @ 0.14).
@@ -706,17 +705,22 @@ fun LiquidGlassNavBottomBar(
                             .align(Alignment.CenterStart)
                             .offset {
                                 val wPx = dropletWidth.toPx()
-                                val hPx = dropletHeight.toPx()
                                 IntOffset(
                                     x = (animatedIndex * slotStepPx - (wPx - slotWidth.toPx()) / 2f)
                                         .roundToInt(),
-                                    y = (-(hPx - capsuleHeight.toPx()) / 2f - dropletLift.toPx())
-                                        .roundToInt()
+                                    // No vertical bias: the droplet is centred on the
+                                    // capsule, so it breaks the top and bottom edges by
+                                    // the same margin on every frame.
+                                    y = 0
                                 )
                             }
                             .requiredSize(dropletWidth, dropletHeight)
                             .graphicsLayer {
-                                alpha = (0.94f + 0.06f * pop).coerceIn(0f, 1f)
+                                // Nothing at rest. The droplet is an interaction
+                                // response, not a resident indicator — it dissolves
+                                // in on press / drag / travel and leaves the accent
+                                // chip as the resting state.
+                                alpha = (pop * 1.15f).coerceIn(0f, 1f)
                             }
                     ) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {

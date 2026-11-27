@@ -1,0 +1,2 @@
+- The navigation droplet now inflates evenly above and below the capsule instead of only upwards.
+- The droplet only appears while you are pressing, dragging or switching tabs, and disappears when the bar settles.

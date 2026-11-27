@@ -2,6 +2,15 @@
 
 All notable changes to NexText are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is [SemVer](https://semver.org/).
 
+## [1.6.5] — 2026-11-27
+
+### Changed
+- **The droplet pops symmetrically.** It is centred on the capsule now, so it breaks the top and bottom edges by the same margin on every frame. The one-sided upward lift is gone.
+- **It only exists while you are touching the bar.** The droplet dissolves in on press, drag or travel and dissolves out once the bar settles, leaving the accent chip as the resting state — no resident bubble.
+
+### Kept
+- The glass-over-glass read: the droplet still refracts the capsule it sits on, so the slab's body and rim bend through it where the two overlap.
+
 ## [1.6.4] — 2026-11-27
 
 ### Fixed
