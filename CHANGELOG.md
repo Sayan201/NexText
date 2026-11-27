@@ -2,6 +2,15 @@
 
 All notable changes to NexText are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is [SemVer](https://semver.org/).
 
+## [1.6.0] — 2026-11-27
+
+### Changed
+- **Selector motion now matches Zangetsu.** The oversized glass droplet that sat under the tab is gone. The selected tab is a modest accent chip that slides, and the **icon springs from 0.7 to 1.0** with an overshoot (380 ms, easeOutBack) the moment the tab becomes selected — the same pop the reference app uses.
+- **Frost slider is legible.** The settings preview now sits over high-contrast text and the blur range was widened (1 → 16 dp) with a stronger milky lift, so the difference between 0% and 100% is obvious. A live descriptor under the slider reads Crystal clear / Light frost / Frosted / Heavy frost.
+
+### Fixed
+- The droplet no longer overhangs the capsule at rest.
+
 ## [1.5.0] — 2026-11-27
 
 ### Added
