@@ -719,7 +719,7 @@ private fun NexTextApp(
                 heightPercent = prefs.glassBarHeightPercent,
                 maxWidthPercent = prefs.glassBarMaxWidthPercent,
                 buttonSpacingDp = prefs.glassBarButtonSpacingDp,
-                opacityPercent = prefs.glassBarOpacityPercent,
+                frostPercent = prefs.glassBarFrostPercent,
                 rimBrightnessPercent = prefs.glassBarRimBrightnessPercent,
                 onSelectTab = { tab ->
                     if (isSwapped) {

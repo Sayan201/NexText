@@ -421,7 +421,7 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         heightPercent: Int,
         maxWidthPercent: Int,
         buttonSpacingDp: Int,
-        opacityPercent: Int,
+        frostPercent: Int,
         rimBrightnessPercent: Int
     ) {
         viewModelScope.launch {
@@ -429,7 +429,7 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
                 heightPercent = heightPercent,
                 maxWidthPercent = maxWidthPercent,
                 buttonSpacingDp = buttonSpacingDp,
-                opacityPercent = opacityPercent,
+                frostPercent = frostPercent,
                 rimBrightnessPercent = rimBrightnessPercent
             )
         }

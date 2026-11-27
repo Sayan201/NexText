@@ -80,12 +80,13 @@ import kotlin.math.roundToInt
 
 /**
  * Real AGSL Liquid Glass Refraction Shader (Android 13+ / API 33+)
- * Reads actual underlying pixels from `uniform shader contents` and applies:
+ * Ported from Zangetsu's `liquidNavGlassSettings` (bodyMode = clear):
  * - Rounded-capsule SDF edge bending (Snell's Law refraction, refractiveIndex = 1.24, thickness = 26)
- * - Soft crystal micro-blur (Zangetsu blur = 3)
+ * - `uFrost` drives a 12-tap disc blur + milky white film — 0 is crystal clear, 1 is heavy frost.
+ *   It never paints a black scrim over the backdrop; depth comes from bodyShade only.
  * - Color saturation boost (1.15)
  * - Fresnel rim lighting (0.55) + directional top/bottom specular bevel (rimShade = 0.45, rimLight = 0.12)
- * - Upper-right caustic accent reflection
+ * - Soft outer glow (glowIntensity = 0.12) on the popped droplet
  */
 private const val LIQUID_GLASS_REFRACTION_AGSL = """
 uniform shader contents;
@@ -93,7 +94,7 @@ uniform float2 uSize;
 uniform float uRadius;
 uniform float4 uAccent;
 uniform float uExpand;
-uniform float uOpacity;
+uniform float uFrost;
 uniform float uRim;
 
 float sdRoundedBox(float2 p, float2 b, float r) {
@@ -118,33 +119,54 @@ half4 main(float2 fragCoord) {
     ));
 
     float distIn = -d;
-    float thickness = 28.0 + 8.0 * uExpand;
+    float frost = clamp(uFrost, 0.0, 1.0);
+    float expandP = clamp(uExpand, 0.0, 1.0);
+    float thickness = 28.0 + 8.0 * expandP;
     float edgeRatio = clamp(distIn / thickness, 0.0, 1.0);
 
     // Strong Snell's Law refraction concentrated in the curved rim (center stays crystal clear)
     float bendFactor = pow(1.0 - edgeRatio, 2.2);
-    float bendAmount = bendFactor * (26.0 + 20.0 * uExpand);
+    float bendAmount = bendFactor * (26.0 + 20.0 * expandP);
     float2 refractCoord = clamp(fragCoord - n * bendAmount, float2(1.0), uSize - float2(1.0));
+    float2 lo = float2(1.0);
+    float2 hi = uSize - float2(1.0);
 
-    // Sharp center, slight optical dispersion/softness only near rim
-    float rimBlur = 2.2 * (1.0 - edgeRatio);
-    half4 c0 = contents.eval(refractCoord);
-    float3 rgb = c0.rgb;
+    // Frost body: 12-tap golden-angle disc, radius grows with uFrost (Zangetsu blur 3 at ~35%)
+    half4 acc = contents.eval(refractCoord);
+    float taps = 1.0;
+    if (frost > 0.02) {
+        float radius = 1.5 + 9.5 * frost;
+        for (int i = 0; i < 12; i++) {
+            float fi = float(i);
+            float ang = fi * 2.39996323;
+            float rr = radius * sqrt((fi + 0.5) / 12.0);
+            float2 off = float2(cos(ang), sin(ang)) * rr;
+            acc += contents.eval(clamp(refractCoord + off, lo, hi));
+            taps += 1.0;
+        }
+    }
+    float3 rgb = (acc / taps).rgb;
+
+    // Rim-only optical softness; fades out as the body frost takes over
+    float rimBlur = 2.2 * (1.0 - edgeRatio) * (1.0 - 0.6 * frost);
     if (rimBlur > 0.35) {
-        half4 c1 = contents.eval(clamp(refractCoord + float2(rimBlur, 0.0), float2(1.0), uSize - float2(1.0)));
-        half4 c2 = contents.eval(clamp(refractCoord - float2(rimBlur, 0.0), float2(1.0), uSize - float2(1.0)));
-        half4 c3 = contents.eval(clamp(refractCoord + float2(0.0, rimBlur), float2(1.0), uSize - float2(1.0)));
-        half4 c4 = contents.eval(clamp(refractCoord - float2(0.0, rimBlur), float2(1.0), uSize - float2(1.0)));
-        rgb = mix(rgb, ((c0 + c1 + c2 + c3 + c4) * 0.2).rgb, 0.65);
+        half4 c1 = contents.eval(clamp(refractCoord + float2(rimBlur, 0.0), lo, hi));
+        half4 c2 = contents.eval(clamp(refractCoord - float2(rimBlur, 0.0), lo, hi));
+        half4 c3 = contents.eval(clamp(refractCoord + float2(0.0, rimBlur), lo, hi));
+        half4 c4 = contents.eval(clamp(refractCoord - float2(0.0, rimBlur), lo, hi));
+        rgb = mix(rgb, (rgb + c1.rgb + c2.rgb + c3.rgb + c4.rgb) * 0.2, 0.6);
     }
 
     // Saturation boost (1.15)
     float luma = dot(rgb, float3(0.299, 0.587, 0.114));
     rgb = mix(float3(luma), rgb, 1.15);
 
-    // Configurable glass opacity at rest, deep dark-crystal interior when held/expanded
-    float bodyDarken = mix(uOpacity, max(uOpacity, 0.88), uExpand);
-    rgb = mix(rgb, float3(0.02, 0.024, 0.032), bodyDarken * smoothstep(0.0, 0.42, edgeRatio));
+    // Milky frost film (Zangetsu glassColor white @ 0.12) — lightens, never darkens
+    rgb = mix(rgb, mix(rgb, float3(1.0), 0.42) + float3(0.02), 0.20 * frost);
+
+    // bodyShade 0.12, bottom-weighted so labels keep contrast on bright backdrops
+    float bodyShade = smoothstep(-0.1, 1.0, p.y / max(halfSize.y, 1.0)) * 0.12;
+    rgb *= (1.0 - bodyShade);
 
     // Local capsule-rim pinch illusion inside the held droplet's curved edges only
     if (uExpand > 0.05) {
@@ -293,7 +315,7 @@ private fun RealRefractionGlassLayer(
     cornerRadiusDp: Float,
     accentColor: Color,
     expandProgress: Float,
-    opacity: Float = 0.22f,
+    frost: Float = 0.35f,
     rimBrightness: Float = 0.45f,
     modifier: Modifier = Modifier
 ) {
@@ -325,7 +347,7 @@ private fun RealRefractionGlassLayer(
                         accentColor.alpha
                     )
                     shader.setFloatUniform("uExpand", expandProgress)
-                    shader.setFloatUniform("uOpacity", opacity.coerceIn(0f, 1f))
+                    shader.setFloatUniform("uFrost", frost.coerceIn(0f, 1f))
                     shader.setFloatUniform("uRim", rimBrightness.coerceIn(0f, 1f))
                     renderEffect = RenderEffect
                         .createRuntimeShaderEffect(shader, "contents")
@@ -435,14 +457,14 @@ fun LiquidGlassNavBottomBar(
     heightPercent: Int = 100,
     maxWidthPercent: Int = 100,
     buttonSpacingDp: Int = 4,
-    opacityPercent: Int = 22,
+    frostPercent: Int = 35,
     rimBrightnessPercent: Int = 45,
     showComposeButton: Boolean = true
 ) {
     val heightScale = (heightPercent.coerceIn(80, 135) / 100f)
     val maxWidthFraction = (maxWidthPercent.coerceIn(65, 100) / 100f)
     val spacingDp = buttonSpacingDp.coerceIn(0, 24).dp
-    val opacity = (opacityPercent.coerceIn(0, 100) / 100f)
+    val frost = (frostPercent.coerceIn(0, 100) / 100f)
     val rimBrightness = (rimBrightnessPercent.coerceIn(0, 100) / 100f)
 
     val capsuleHeight = (60f * heightScale).dp
@@ -530,7 +552,7 @@ fun LiquidGlassNavBottomBar(
                             cornerRadiusDp = capsuleCorner.value,
                             accentColor = accentColor,
                             expandProgress = 0f,
-                            opacity = opacity,
+                            frost = frost,
                             rimBrightness = rimBrightness,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -542,9 +564,9 @@ fun LiquidGlassNavBottomBar(
                                 .hazeChild(
                                     state = hazeState,
                                     style = HazeDefaults.style(
-                                        backgroundColor = Color.Black.copy(alpha = opacity),
-                                        blurRadius = 4.dp,
-                                        tint = HazeTint(Color.White.copy(alpha = (opacity * 0.35f).coerceAtMost(0.18f)))
+                                        backgroundColor = Color.White.copy(alpha = 0.03f + 0.11f * frost),
+                                        blurRadius = (0.5f + 7.5f * frost).dp,
+                                        tint = HazeTint(Color.White.copy(alpha = 0.05f + 0.12f * frost))
                                     )
                                 )
                                 .border(
@@ -571,79 +593,86 @@ fun LiquidGlassNavBottomBar(
                     val totalSpacing = spacingDp * (tabs.size - 1).coerceAtLeast(0)
                     val slotWidth = ((maxWidth - totalSpacing) / tabs.size).coerceAtLeast(36.dp)
                     val slotStepPx = with(density) { (slotWidth + spacingDp).toPx() }
-                    val expandPx = with(density) { (9.dp * expandProgress).toPx() }
+                    val extraWidth = 8.dp + 12.dp * expandProgress
+                    val extraHeight = 14.dp + 20.dp * expandProgress
+                    val dropletWidth = slotWidth + extraWidth
+                    val dropletHeight = pillHeight + extraHeight
+                    val dropletShiftPx = with(density) { (extraWidth / 2).toPx() }
 
-                    // Resting subtle indicator
+                    // Soft outer halo behind the droplet (Zangetsu glowIntensity 0.12)
                     Box(
                         modifier = Modifier
                             .align(Alignment.CenterStart)
                             .offset {
                                 IntOffset(
-                                    x = (animatedIndex * slotStepPx).roundToInt(),
+                                    x = (animatedIndex * slotStepPx - dropletShiftPx).roundToInt(),
                                     y = 0
                                 )
                             }
-                            .width(slotWidth)
-                            .height(pillHeight)
-                            .clip(pillShape)
-                            .background(accentColor.copy(alpha = 0.14f * (1f - expandProgress)))
+                            .requiredSize(dropletWidth + 12.dp, dropletHeight + 12.dp)
+                            .background(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        Color.White.copy(
+                                            alpha = (0.10f + 0.10f * expandProgress) *
+                                                (0.35f + 0.65f * rimBrightness)
+                                        ),
+                                        Color.Transparent
+                                    )
+                                ),
+                                shape = RoundedCornerShape(pillCorner + 6.dp)
+                            )
                     )
 
-                    // Expanding 3D Liquid Glass Droplet
-                    if (expandProgress > 0.01f) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .offset {
-                                    IntOffset(
-                                        x = (animatedIndex * slotStepPx - expandPx).roundToInt(),
-                                        y = 0
-                                    )
-                                }
-                                .requiredSize(
-                                    width = slotWidth + (18.dp * expandProgress),
-                                    height = pillHeight + (26.dp * expandProgress)
-                                )
-                                .graphicsLayer { alpha = expandProgress.coerceIn(0f, 1f) }
-                        ) {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
-                                RealRefractionGlassLayer(
-                                    backdropLayer = backdropLayer,
-                                    backdropOriginInRoot = backdropOriginInRoot,
-                                    shape = pillShape,
-                                    cornerRadiusDp = pillCorner.value,
-                                    accentColor = accentColor,
-                                    expandProgress = expandProgress,
-                                    opacity = opacity,
-                                    rimBrightness = rimBrightness,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(pillShape)
-                                        .hazeChild(
-                                            state = hazeState,
-                                            style = HazeDefaults.style(
-                                                backgroundColor = Color.Black.copy(alpha = maxOf(opacity, 0.35f)),
-                                                blurRadius = 6.dp,
-                                                tint = HazeTint(accentColor.copy(alpha = 0.14f))
-                                            )
-                                        )
-                                        .border(
-                                            width = (1f + 0.5f * expandProgress).dp,
-                                            brush = Brush.verticalGradient(
-                                                colors = listOf(
-                                                    Color.White.copy(alpha = (rimBrightness + 0.45f * expandProgress).coerceIn(0f, 1f)),
-                                                    Color.White.copy(alpha = rimBrightness * 0.32f),
-                                                    Color.White.copy(alpha = (rimBrightness * 0.65f + 0.40f * expandProgress).coerceIn(0f, 1f))
-                                                )
-                                            ),
-                                            shape = pillShape
-                                        )
+                    // Persistent liquid-glass droplet: always visible, pops wider and taller on switch
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .offset {
+                                IntOffset(
+                                    x = (animatedIndex * slotStepPx - dropletShiftPx).roundToInt(),
+                                    y = 0
                                 )
                             }
+                            .requiredSize(dropletWidth, dropletHeight)
+                    ) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
+                            RealRefractionGlassLayer(
+                                backdropLayer = backdropLayer,
+                                backdropOriginInRoot = backdropOriginInRoot,
+                                shape = pillShape,
+                                cornerRadiusDp = pillCorner.value,
+                                accentColor = accentColor,
+                                expandProgress = expandProgress,
+                                frost = frost,
+                                rimBrightness = rimBrightness,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(pillShape)
+                                    .hazeChild(
+                                        state = hazeState,
+                                        style = HazeDefaults.style(
+                                            backgroundColor = Color.White.copy(alpha = 0.03f + 0.11f * frost),
+                                            blurRadius = (0.5f + 7.5f * frost).dp,
+                                            tint = HazeTint(Color.White.copy(alpha = 0.05f + 0.12f * frost))
+                                        )
+                                    )
+                                    .border(
+                                        width = (1f + 0.4f * expandProgress).dp,
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color.White.copy(alpha = (rimBrightness + 0.45f * expandProgress).coerceIn(0f, 1f)),
+                                                Color.White.copy(alpha = rimBrightness * 0.32f),
+                                                Color.White.copy(alpha = (rimBrightness * 0.65f + 0.40f * expandProgress).coerceIn(0f, 1f))
+                                            )
+                                        ),
+                                        shape = pillShape
+                                    )
+                            )
                         }
                     }
 
@@ -704,11 +733,7 @@ fun LiquidGlassNavBottomBar(
                                 Icon(
                                     imageVector = item.icon,
                                     contentDescription = item.label,
-                                    tint = when {
-                                        isActive && expandProgress > 0.35f -> Color.White
-                                        isActive -> accentColor
-                                        else -> Color.White
-                                    },
+                                    tint = if (isActive) accentColor else Color.White.copy(alpha = 0.82f),
                                     modifier = Modifier.size(22.dp)
                                 )
                                 if (item.unreadCount > 0) {
@@ -742,7 +767,7 @@ fun LiquidGlassNavBottomBar(
                     backdropLayer = backdropLayer,
                     backdropOriginInRoot = backdropOriginInRoot,
                     sizeDp = (56f * heightScale.coerceIn(0.85f, 1.25f)).dp,
-                    opacity = opacity,
+                    frost = frost,
                     rimBrightness = rimBrightness,
                     onClick = onComposeClick
                 )
@@ -758,7 +783,7 @@ private fun CircularCrystalComposeButton(
     backdropLayer: GraphicsLayer?,
     backdropOriginInRoot: Offset,
     sizeDp: Dp = 56.dp,
-    opacity: Float = 0.22f,
+    frost: Float = 0.35f,
     rimBrightness: Float = 0.45f,
     onClick: () -> Unit
 ) {
@@ -777,7 +802,7 @@ private fun CircularCrystalComposeButton(
                 cornerRadiusDp = sizeDp.value * 0.5f,
                 accentColor = accentColor,
                 expandProgress = 0f,
-                opacity = opacity,
+                frost = frost,
                 rimBrightness = rimBrightness,
                 modifier = Modifier.fillMaxSize()
             )
@@ -789,9 +814,9 @@ private fun CircularCrystalComposeButton(
                     .hazeChild(
                         state = hazeState,
                         style = HazeDefaults.style(
-                            backgroundColor = Color.Black.copy(alpha = opacity),
-                            blurRadius = 4.dp,
-                            tint = HazeTint(Color.White.copy(alpha = (opacity * 0.35f).coerceAtMost(0.18f)))
+                            backgroundColor = Color.White.copy(alpha = 0.03f + 0.11f * frost),
+                            blurRadius = (0.5f + 7.5f * frost).dp,
+                            tint = HazeTint(Color.White.copy(alpha = 0.05f + 0.12f * frost))
                         )
                     )
                     .border(

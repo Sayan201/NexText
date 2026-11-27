@@ -579,7 +579,7 @@ fun SettingsScreen(
                                         fontWeight = FontWeight.Medium
                                     )
                                     Text(
-                                        text = "Height ${preferences.glassBarHeightPercent}% • Width ${preferences.glassBarMaxWidthPercent}% • Opacity ${preferences.glassBarOpacityPercent}% • Rim ${preferences.glassBarRimBrightnessPercent}%",
+                                        text = "Height ${preferences.glassBarHeightPercent}% • Width ${preferences.glassBarMaxWidthPercent}% • Frost ${preferences.glassBarFrostPercent}% • Rim ${preferences.glassBarRimBrightnessPercent}%",
                                         color = subTextColor,
                                         fontSize = 12.sp
                                     )
@@ -764,7 +764,7 @@ fun SettingsScreen(
             initialHeightPercent = preferences.glassBarHeightPercent,
             initialMaxWidthPercent = preferences.glassBarMaxWidthPercent,
             initialButtonSpacingDp = preferences.glassBarButtonSpacingDp,
-            initialOpacityPercent = preferences.glassBarOpacityPercent,
+            initialFrostPercent = preferences.glassBarFrostPercent,
             initialRimBrightnessPercent = preferences.glassBarRimBrightnessPercent,
             accentColor = MaterialTheme.colorScheme.primary,
             onDismiss = { showGlassStyleDialog = false },
@@ -781,7 +781,7 @@ private fun GlassNavStyleDialog(
     initialHeightPercent: Int,
     initialMaxWidthPercent: Int,
     initialButtonSpacingDp: Int,
-    initialOpacityPercent: Int,
+    initialFrostPercent: Int,
     initialRimBrightnessPercent: Int,
     accentColor: Color,
     onDismiss: () -> Unit,
@@ -790,7 +790,7 @@ private fun GlassNavStyleDialog(
     var heightPercent by remember { mutableIntStateOf(initialHeightPercent) }
     var maxWidthPercent by remember { mutableIntStateOf(initialMaxWidthPercent) }
     var buttonSpacingDp by remember { mutableIntStateOf(initialButtonSpacingDp) }
-    var opacityPercent by remember { mutableIntStateOf(initialOpacityPercent) }
+    var frostPercent by remember { mutableIntStateOf(initialFrostPercent) }
     var rimBrightnessPercent by remember { mutableIntStateOf(initialRimBrightnessPercent) }
     var previewTab by remember { mutableIntStateOf(0) }
 
@@ -882,7 +882,7 @@ private fun GlassNavStyleDialog(
                         heightPercent = heightPercent,
                         maxWidthPercent = maxWidthPercent,
                         buttonSpacingDp = buttonSpacingDp,
-                        opacityPercent = opacityPercent,
+                        frostPercent = frostPercent,
                         rimBrightnessPercent = rimBrightnessPercent,
                         showComposeButton = false,
                         onSelectTab = { previewTab = it },
@@ -924,11 +924,11 @@ private fun GlassNavStyleDialog(
                     onValueChange = { buttonSpacingDp = it.roundToInt() }
                 )
                 GlassStyleSliderRow(
-                    label = "Opacity",
-                    valueText = "$opacityPercent%",
-                    value = opacityPercent.toFloat(),
+                    label = "Frost",
+                    valueText = if (frostPercent == 0) "Clear" else "$frostPercent%",
+                    value = frostPercent.toFloat(),
                     valueRange = 0f..100f,
-                    onValueChange = { opacityPercent = it.roundToInt() }
+                    onValueChange = { frostPercent = it.roundToInt() }
                 )
                 GlassStyleSliderRow(
                     label = "Rim brightness",
@@ -948,7 +948,7 @@ private fun GlassNavStyleDialog(
                             heightPercent = 100
                             maxWidthPercent = 100
                             buttonSpacingDp = 4
-                            opacityPercent = 22
+                            frostPercent = 35
                             rimBrightnessPercent = 45
                         },
                         colors = ButtonDefaults.buttonColors(
@@ -977,7 +977,7 @@ private fun GlassNavStyleDialog(
                                 heightPercent,
                                 maxWidthPercent,
                                 buttonSpacingDp,
-                                opacityPercent,
+                                frostPercent,
                                 rimBrightnessPercent
                             )
                         },

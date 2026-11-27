@@ -189,7 +189,9 @@ No store review queue, no staged rollout, no waiting. [Full network details belo
 ### 🎨 Liquid Glass design
 
 - Translucent floating bottom capsule with **real refraction** — AGSL shaders and `GraphicsLayer` backdrop sampling, not a blur overlay
-- Spring-driven droplet tab transitions and outward glass magnification on touch
+- **Liquid Glass droplet** under the selected tab: it pops wider and taller on every switch, refracts the rim, and carries a soft outer glow
+- **Frost** control instead of opacity — slide from crystal clear to heavy frost without ever tinting the glass black
+- Spring-driven tab transitions and outward glass magnification on touch
 - **Pitch Black** OLED theme, optional **Material 3** mode, cyan default accent plus custom accents
 - **Swap menu bar positions**, plus Glass navigation bar size and style customisation
 
@@ -444,12 +446,15 @@ Yes — MIT licensed, source included. See <a href="LICENSE">LICENSE</a>.
 
 Full history in **[CHANGELOG.md](CHANGELOG.md)**.
 
-**Latest — v1.3.0**
+**Latest — v1.5.0**
 
+- 🫧 **Liquid Glass droplet** under the selected tab — always visible, pops wider and taller on every switch, refracts the rim, frosted body, soft outer glow
+- ❄️ **Frost** slider replaces Opacity: **0% crystal clear → 100% heavy frost**, never a black scrim
+- 🎯 Active tab icon uses the accent colour on clear glass instead of flipping to white
 - 🔄 In-app update checker against GitHub Releases, with release notes in a flyout
 - ⬇️ APK download with progress, then hand-off to Android's package installer
 - 🟡 **Update** capsule in the inbox header when a version is dismissed but still available
-- 🔐 Network story rewritten: `INTERNET` is declared, used only by `update/AppUpdater.kt`
+- 🔐 Network story written down: `INTERNET` is declared, used only by `update/AppUpdater.kt`
 - 🧩 Settings copy and About text now state exactly what the network is for
 
 ---

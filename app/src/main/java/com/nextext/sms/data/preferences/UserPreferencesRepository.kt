@@ -76,7 +76,7 @@ data class UserPreferences(
     val glassBarHeightPercent: Int = 100,
     val glassBarMaxWidthPercent: Int = 100,
     val glassBarButtonSpacingDp: Int = 4,
-    val glassBarOpacityPercent: Int = 22,
+    val glassBarFrostPercent: Int = 35,
     val glassBarRimBrightnessPercent: Int = 45,
     val dismissedUpdateVersion: String? = null
 )
@@ -104,7 +104,8 @@ class UserPreferencesRepository(private val context: Context) {
         val GLASS_HEIGHT_PCT = intPreferencesKey("glass_height_pct")
         val GLASS_MAX_WIDTH_PCT = intPreferencesKey("glass_max_width_pct")
         val GLASS_BTN_SPACING_DP = intPreferencesKey("glass_btn_spacing_dp")
-        val GLASS_OPACITY_PCT = intPreferencesKey("glass_opacity_pct")
+        // Key string kept as glass_opacity_pct so 1.2.x installs keep their saved value.
+        val GLASS_FROST_PCT = intPreferencesKey("glass_opacity_pct")
         val GLASS_RIM_BRIGHTNESS_PCT = intPreferencesKey("glass_rim_brightness_pct")
         val DISMISSED_UPDATE_VERSION = stringPreferencesKey("dismissed_update_version")
     }
@@ -143,7 +144,7 @@ class UserPreferencesRepository(private val context: Context) {
             glassBarHeightPercent = (prefs[Keys.GLASS_HEIGHT_PCT] ?: 100).coerceIn(80, 135),
             glassBarMaxWidthPercent = (prefs[Keys.GLASS_MAX_WIDTH_PCT] ?: 100).coerceIn(65, 100),
             glassBarButtonSpacingDp = (prefs[Keys.GLASS_BTN_SPACING_DP] ?: 4).coerceIn(0, 24),
-            glassBarOpacityPercent = (prefs[Keys.GLASS_OPACITY_PCT] ?: 22).coerceIn(0, 100),
+            glassBarFrostPercent = (prefs[Keys.GLASS_FROST_PCT] ?: 35).coerceIn(0, 100),
             glassBarRimBrightnessPercent = (prefs[Keys.GLASS_RIM_BRIGHTNESS_PCT] ?: 45).coerceIn(0, 100),
             dismissedUpdateVersion = prefs[Keys.DISMISSED_UPDATE_VERSION]
         )
@@ -225,14 +226,14 @@ class UserPreferencesRepository(private val context: Context) {
         heightPercent: Int,
         maxWidthPercent: Int,
         buttonSpacingDp: Int,
-        opacityPercent: Int,
+        frostPercent: Int,
         rimBrightnessPercent: Int
     ) {
         context.dataStore.edit {
             it[Keys.GLASS_HEIGHT_PCT] = heightPercent.coerceIn(80, 135)
             it[Keys.GLASS_MAX_WIDTH_PCT] = maxWidthPercent.coerceIn(65, 100)
             it[Keys.GLASS_BTN_SPACING_DP] = buttonSpacingDp.coerceIn(0, 24)
-            it[Keys.GLASS_OPACITY_PCT] = opacityPercent.coerceIn(0, 100)
+            it[Keys.GLASS_FROST_PCT] = frostPercent.coerceIn(0, 100)
             it[Keys.GLASS_RIM_BRIGHTNESS_PCT] = rimBrightnessPercent.coerceIn(0, 100)
         }
     }

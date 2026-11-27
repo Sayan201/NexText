@@ -2,6 +2,42 @@
 
 All notable changes to NexText are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is [SemVer](https://semver.org/).
 
+## [1.5.0] — 2026-11-27
+
+### Added
+- **Liquid Glass droplet on the nav bar.** The selected tab now sits inside a persistent glass pill that pops wider and taller on every switch. Rim refraction, a 12-tap frosted body, a milky film and a soft outer glow, ported from Zangetsu's `bodyMode: clear` glass settings.
+- **Frost slider.** *Glass navigation bar size and style* now controls frost: **0% is crystal clear** — pure edge refraction, no blur — and **100% is heavy frost**. The pill's body is frosted from the inside out, never covered by a scrim.
+
+### Changed
+- **Opacity is gone, and so is the black tint.** The old slider darkened the glass toward black; frost now works by blurring and lifting the backdrop, so the bar keeps its colour and the content behind it stays readable.
+- **The selected tab keeps its bubble at rest.** Previously the droplet only appeared mid-switch and collapsed to a flat accent tint. It is now always visible, so the active destination reads as glass even when the bar is idle.
+- **Active icon uses the accent colour** on clear glass instead of flipping to white, matching the accent-on-glass look of the reference.
+- The stored preference key is unchanged (`glass_opacity_pct`), so existing installs keep their saved value. New installs default to 35%.
+- Settings copy and the summary row now say **Frost** instead of **Opacity**.
+
+## [1.4.0] — 2026-11-27
+
+### Added
+- **HyperOS-style Smart SMS Cards** for tickets, OTP, banking, billing and delivery messages, with the action the message implies surfaced on the card.
+
+### Changed
+- **SMS list separator contrast raised to 85%** so threads separate cleanly on AMOLED instead of bleeding into one another.
+
+## [1.3.0] — 2026-11-27
+
+### Added
+- **In-app updates from GitHub Releases.** On launch (and on demand from Settings) NexText fetches `api.github.com/repos/Sayan201/NexText/releases/latest`, compares the tag with the installed `versionName`, and shows the release notes in a flyout when a newer build exists. The APK downloads to cache with a progress bar and hands off to Android's package installer.
+- **Update capsule.** Dismissing a version keeps a yellow **Update** capsule in the inbox header, so the release stays one tap away.
+
+### Changed
+- **`INTERNET` is now declared.** It is used by one file, `update/AppUpdater.kt`, for the release check and the APK download. Nothing else in the app opens a connection.
+- **`REQUEST_INSTALL_PACKAGES` added** so a downloaded update can be handed to the package installer.
+- `FileProvider` returns, scoped to `cache/updates/` only, to expose the downloaded APK to the installer.
+- The Drive backup path is unchanged: it still writes through SAF and needs no network permission of its own.
+
+### Documentation
+- README rewritten around the real network surface: what stays on the device, every request the app can make, and what the update check does not send.
+
 ## [1.2.0] — 2026-11-26
 
 ### Added
