@@ -1,0 +1,2 @@
+- Added github and fdroid product flavors (fdroid build has zero INTERNET and zero REQUEST_INSTALL_PACKAGES permissions).
+- Added Fastlane metadata and screenshots for F-Droid.
