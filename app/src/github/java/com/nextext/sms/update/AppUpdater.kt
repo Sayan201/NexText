@@ -55,11 +55,14 @@ object AppUpdater {
                     val asset = assets.optJSONObject(i) ?: continue
                     val name = asset.optString("name")
                     val url = asset.optString("browser_download_url")
-                    if (name.equals("app-release.apk", ignoreCase = true)) {
+                    if (name.equals("app-github-release.apk", ignoreCase = true) ||
+                        name.equals("app-release.apk", ignoreCase = true)
+                    ) {
                         apkUrl = url
                         break
                     }
                     if (apkUrl.isBlank() && name.endsWith(".apk", ignoreCase = true) &&
+                        !name.contains("debug", ignoreCase = true) &&
                         !name.contains("unsigned", ignoreCase = true)
                     ) {
                         apkUrl = url
