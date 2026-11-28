@@ -335,12 +335,12 @@ fun HyperOsSmartSmsCard(
     ) {
         Surface(
             shape = RoundedCornerShape(18.dp),
-            color = Color(0xFF15171C),
+            color = MaterialTheme.colorScheme.surfaceVariant,
             modifier = Modifier
                 .widthIn(max = 330.dp)
                 .border(
                     width = 0.7.dp,
-                    color = Color.White.copy(alpha = 0.12f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                     shape = RoundedCornerShape(18.dp)
                 )
         ) {
@@ -369,7 +369,7 @@ fun HyperOsSmartSmsCard(
                             .fillMaxWidth()
                             .padding(horizontal = 14.dp, vertical = 6.dp)
                     ) {
-                        HorizontalDivider(thickness = 0.5.dp, color = Color.White.copy(alpha = 0.12f))
+                        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
                         Spacer(Modifier.height(6.dp))
                         Text(
                             text = message.body,
@@ -458,7 +458,7 @@ private fun TicketCardBody(
             Spacer(Modifier.width(6.dp))
             Text(
                 text = card.headerTitle,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.8.sp
@@ -481,7 +481,7 @@ private fun TicketCardBody(
                 )
                 Text(
                     text = card.primaryValue,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -500,7 +500,7 @@ private fun TicketCardBody(
                     if (card.timeText != null) {
                         Text(
                             text = card.timeText,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -520,7 +520,7 @@ private fun TicketCardBody(
             ) {
                 Text(
                     text = card.fromCode,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -534,7 +534,7 @@ private fun TicketCardBody(
                 Spacer(Modifier.width(14.dp))
                 Text(
                     text = card.toCode,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -561,7 +561,7 @@ private fun TicketCardBody(
             val midY = size.height / 2f
             val notchRadius = 8.dp.toPx()
             drawLine(
-                color = Color.White.copy(alpha = 0.20f),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.20f),
                 start = Offset(notchRadius + 4.dp.toPx(), midY),
                 end = Offset(size.width - notchRadius - 4.dp.toPx(), midY),
                 strokeWidth = 1.dp.toPx(),
@@ -605,7 +605,7 @@ private fun TicketCardBody(
                             Text("Seat / Coach", color = Color(0xFF9CA3AF), fontSize = 11.sp)
                             Text(
                                 text = card.seatOrClass,
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -616,7 +616,7 @@ private fun TicketCardBody(
                             Text("Fare", color = Color(0xFF9CA3AF), fontSize = 11.sp)
                             Text(
                                 text = card.fareText,
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -627,7 +627,7 @@ private fun TicketCardBody(
         }
 
         // Bottom 2-action row: Copy PNR | Add to Calendar
-        HorizontalDivider(thickness = 0.5.dp, color = Color.White.copy(alpha = 0.12f))
+        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -725,7 +725,7 @@ private fun OtpCardBody(
                 )
                 Text(
                     text = card.otpCode,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.2.sp
@@ -734,20 +734,20 @@ private fun OtpCardBody(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
-                    .background(Color.White.copy(alpha = 0.12f))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
                     .clickable { onCopyOtp(card.otpCode) }
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Text(
                     text = "COPY",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
         }
         Spacer(Modifier.height(10.dp))
-        HorizontalDivider(thickness = 0.5.dp, color = Color.White.copy(alpha = 0.10f))
+        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f))
         Spacer(Modifier.height(8.dp))
         Text(
             text = card.summary,
@@ -787,7 +787,7 @@ private fun BankingCardBody(card: SmartSmsCard.BankingCard) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = card.title,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -799,13 +799,13 @@ private fun BankingCardBody(card: SmartSmsCard.BankingCard) {
             }
             Text(
                 text = card.amountText,
-                color = if (card.kind == BankingKind.FAILED) Color(0xFFEF4444) else Color.White,
+                color = if (card.kind == BankingKind.FAILED) Color(0xFFEF4444) else MaterialTheme.colorScheme.onSurface,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
         }
         Spacer(Modifier.height(10.dp))
-        HorizontalDivider(thickness = 0.5.dp, color = Color.White.copy(alpha = 0.10f))
+        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f))
         Spacer(Modifier.height(8.dp))
         Text(
             text = card.summary,
@@ -844,7 +844,7 @@ private fun BillingCardBody(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = card.title,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -857,14 +857,14 @@ private fun BillingCardBody(
             if (!card.amountText.isNullOrBlank()) {
                 Text(
                     text = card.amountText,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
         }
         Spacer(Modifier.height(10.dp))
-        HorizontalDivider(thickness = 0.5.dp, color = Color.White.copy(alpha = 0.10f))
+        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f))
         Spacer(Modifier.height(8.dp))
         Text(
             text = card.summary,
@@ -879,14 +879,14 @@ private fun BillingCardBody(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(50))
-                .background(Color.White.copy(alpha = 0.10f))
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f))
                 .clickable(onClick = onAddToCalendar)
                 .padding(vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "Add Reminder to Calendar",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -928,14 +928,14 @@ private fun DeliveryCardBody(card: SmartSmsCard.DeliveryCard) {
                 )
                 Text(
                     text = card.statusHeadline,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
         }
         Spacer(Modifier.height(10.dp))
-        HorizontalDivider(thickness = 0.5.dp, color = Color.White.copy(alpha = 0.10f))
+        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f))
         Spacer(Modifier.height(8.dp))
         Text(
             text = card.summary,

@@ -1,0 +1,3 @@
+- The navigation droplet now floats above the capsule with a contact shadow, and the capsule's rim is visible through the glass.
+- Light theme now applies to the inbox, conversations, finance and smart hub screens, not just Settings.
+- Changing the accent colour repaints every screen. Pitch Black was merged into Dark, which is the same AMOLED theme.

@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.map
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "nextext_prefs")
 
 enum class ThemeMode(val label: String) {
-    PITCH_BLACK("Pitch Black (AMOLED)"),
     DARK("Dark"),
     LIGHT("Light"),
     SYSTEM("System Default")
@@ -56,7 +55,7 @@ enum class AutoBackupFrequency(val label: String, val intervalDays: Long) {
 }
 
 data class UserPreferences(
-    val themeMode: ThemeMode = ThemeMode.PITCH_BLACK,
+    val themeMode: ThemeMode = ThemeMode.DARK,
     val pitchBlackAccent: PitchBlackAccent = PitchBlackAccent.CYAN,
     val useMaterial3Design: Boolean = false,
     val dynamicColor: Boolean = false,
@@ -112,9 +111,11 @@ class UserPreferencesRepository(private val context: Context) {
 
     val preferences: Flow<UserPreferences> = context.dataStore.data.map { prefs ->
         UserPreferences(
-            themeMode = prefs[Keys.THEME_MODE]?.let {
-                runCatching { ThemeMode.valueOf(it) }.getOrDefault(ThemeMode.PITCH_BLACK)
-            } ?: ThemeMode.PITCH_BLACK,
+            themeMode = prefs[Keys.THEME_MODE]?.let { raw ->
+                // "PITCH_BLACK" was retired: DARK is the AMOLED scheme now.
+                if (raw == "PITCH_BLACK") ThemeMode.DARK
+                else runCatching { ThemeMode.valueOf(raw) }.getOrDefault(ThemeMode.DARK)
+            } ?: ThemeMode.DARK,
             pitchBlackAccent = prefs[Keys.PITCH_BLACK_ACCENT]?.let {
                 runCatching { PitchBlackAccent.valueOf(it) }.getOrDefault(PitchBlackAccent.CYAN)
             } ?: PitchBlackAccent.CYAN,

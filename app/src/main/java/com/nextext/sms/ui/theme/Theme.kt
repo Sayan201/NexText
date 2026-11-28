@@ -68,14 +68,13 @@ private fun pitchBlackColors(accent: PitchBlackAccent) = darkColorScheme(
 
 @Composable
 fun NexTextTheme(
-    themeMode: ThemeMode = ThemeMode.PITCH_BLACK,
+    themeMode: ThemeMode = ThemeMode.DARK,
     pitchBlackAccent: PitchBlackAccent = PitchBlackAccent.CYAN,
     useMaterial3Design: Boolean = false,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val darkTheme = when (themeMode) {
-        ThemeMode.PITCH_BLACK -> true
         ThemeMode.DARK -> true
         ThemeMode.LIGHT -> false
         ThemeMode.SYSTEM -> isSystemInDarkTheme()

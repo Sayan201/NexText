@@ -2,6 +2,17 @@
 
 All notable changes to NexText are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is [SemVer](https://semver.org/).
 
+## [1.6.6] — 2026-11-28
+
+### Fixed
+- **The droplet reads as floating above the capsule.** It casts a soft contact shadow onto the slab before it draws, and the capsule's real top and bottom rims are painted through the glass at their true position. The slab is clear glass with a 1 dp rim, so a refracted sample alone was almost invisible — now you see the capsule edge pass behind the bubble.
+- **Light theme reaches the message pages.** Inbox, Thread, Finance, Smart Hub, smart cards, menus and dialogs were painting literal `Color.Black` / `Color.White` and ignoring the scheme, so only Settings turned light. Every surface and foreground now reads from `MaterialTheme.colorScheme`.
+- **Changing the theme colour repaints the app.** Because the screens no longer hardcode black, a new accent propagates to every screen instead of stopping at Settings.
+
+### Changed
+- **Pitch Black and Dark were the same theme; Pitch Black is gone.** Dark *is* the AMOLED black scheme. A stored `PITCH_BLACK` preference migrates to `DARK` on read, so nothing is lost on upgrade.
+- The navigation bar carries a little more vertical padding, giving the droplet room to clear the capsule symmetrically instead of clipping at the screen edge.
+
 ## [1.6.5] — 2026-11-27
 
 ### Changed

@@ -113,15 +113,15 @@ fun ThreadScreen(
         effectiveAddress.any(Char::isDigit)
 
     Scaffold(
-        containerColor = Color.Black,
+        containerColor = MaterialTheme.colorScheme.background,
         modifier = Modifier.imePadding(),
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Black,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White,
-                    actionIconContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
                 ),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -136,13 +136,13 @@ fun ThreadScreen(
                             overflow = TextOverflow.Ellipsis,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         if (effectiveTitle != effectiveAddress && effectiveAddress.isNotBlank()) {
                             Text(
                                 text = effectiveAddress,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF9E9E9E)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -155,7 +155,7 @@ fun ThreadScreen(
                         DropdownMenu(
                             expanded = showTopMenu,
                             onDismissRequest = { showTopMenu = false },
-                            modifier = Modifier.background(Color(0xFF242426))
+                            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
                         ) {
                             MessageCategory.entries.forEach { cat ->
                                 DropdownMenuItem(
@@ -207,7 +207,7 @@ fun ThreadScreen(
                 state = listState,
                 modifier = Modifier
                     .weight(1f)
-                    .background(Color.Black),
+                    .background(MaterialTheme.colorScheme.background),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
@@ -272,7 +272,7 @@ fun ThreadScreen(
                 )
             } else {
                 Surface(
-                    color = Color(0xFF101216),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
@@ -280,7 +280,7 @@ fun ThreadScreen(
                     Text(
                         text = "Replies are unavailable for alphanumeric sender IDs.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF9E9E9E),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(14.dp)
                     )
                 }
@@ -307,7 +307,7 @@ private fun Photo3SendBar(
     onSend: () -> Unit
 ) {
     Surface(
-        color = Color(0xFF101216),
+        color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
@@ -325,7 +325,7 @@ private fun Photo3SendBar(
                     .fillMaxWidth()
                     .padding(horizontal = 4.dp, vertical = 8.dp),
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 16.sp
                 ),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
@@ -335,7 +335,7 @@ private fun Photo3SendBar(
                         Text(
                             text = "Message...",
                             style = MaterialTheme.typography.bodyLarge,
-                            color = Color(0xFF757575),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 16.sp
                         )
                     }
@@ -384,7 +384,7 @@ private fun Photo3SendBar(
                             DropdownMenu(
                                 expanded = showSimMenu,
                                 onDismissRequest = { onShowSimMenu(false) },
-                                modifier = Modifier.background(Color(0xFF242426))
+                                modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
                             ) {
                                 activeSims.forEach { sim ->
                                     val isSelected = sim.subId == selectedSubId
@@ -445,11 +445,11 @@ private fun Photo4MessageBubble(
     var showMenu by remember { mutableStateOf(false) }
     val alignment = if (message.isIncoming) Alignment.Start else Alignment.End
     val containerColor = if (message.isIncoming) {
-        Color(0xFF16181D)
+        MaterialTheme.colorScheme.surfaceVariant
     } else {
         MaterialTheme.colorScheme.primaryContainer
     }
-    val textColor = Color.White
+    val textColor = MaterialTheme.colorScheme.onSurface
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -493,7 +493,7 @@ private fun Photo4MessageBubble(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Spacer(Modifier.width(6.dp))
-                            Text("Copy OTP ${message.otpCode}", color = Color.White)
+                            Text("Copy OTP ${message.otpCode}", color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
 
@@ -505,7 +505,7 @@ private fun Photo4MessageBubble(
                         Text(
                             text = Formatters.formatDateTime(message.timestamp),
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF8E8E93)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         if (message.isStarred) {
                             Icon(
@@ -522,10 +522,10 @@ private fun Photo4MessageBubble(
             DropdownMenu(
                 expanded = showMenu,
                 onDismissRequest = { showMenu = false },
-                modifier = Modifier.background(Color(0xFF242426))
+                modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 DropdownMenuItem(
-                    text = { Text("Copy Text", color = Color.White) },
+                    text = { Text("Copy Text", color = MaterialTheme.colorScheme.onSurface) },
                     leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null, tint = Color.White) },
                     onClick = {
                         showMenu = false
@@ -533,7 +533,7 @@ private fun Photo4MessageBubble(
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text(if (message.isStarred) "Unstar" else "Star Message", color = Color.White) },
+                    text = { Text(if (message.isStarred) "Unstar" else "Star Message", color = MaterialTheme.colorScheme.onSurface) },
                     leadingIcon = {
                         Icon(
                             if (message.isStarred) Icons.Default.StarBorder else Icons.Default.Star,

@@ -140,11 +140,12 @@ fun SettingsScreen(
     var showAboutDialog by remember { mutableStateOf(false) }
     var showGlassStyleDialog by remember { mutableStateOf(false) }
 
-    val isPitchBlack = !preferences.useMaterial3Design && preferences.themeMode == ThemeMode.PITCH_BLACK
-    val bgColor = if (isPitchBlack) Color.Black else MaterialTheme.colorScheme.background
-    val textColor = if (isPitchBlack) Color.White else MaterialTheme.colorScheme.onSurface
-    val subTextColor = if (isPitchBlack) Color(0xFF8E8E93) else MaterialTheme.colorScheme.onSurfaceVariant
-    val dividerColor = if (isPitchBlack) Color.White.copy(alpha = 0.24f) else MaterialTheme.colorScheme.outlineVariant
+    // Everything below follows the active scheme, so Light actually reaches
+    // this screen and Dark stays AMOLED black through the theme itself.
+    val bgColor = MaterialTheme.colorScheme.background
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val subTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val dividerColor = MaterialTheme.colorScheme.outlineVariant
 
     Scaffold(
         containerColor = bgColor,
@@ -470,10 +471,10 @@ fun SettingsScreen(
 
             // 8. Theme
             item {
-                val themeSummary = when {
-                    preferences.useMaterial3Design -> "Material 3"
-                    preferences.themeMode == ThemeMode.PITCH_BLACK -> "Midnight (${preferences.pitchBlackAccent.label})"
-                    else -> preferences.themeMode.label
+                val themeSummary = if (preferences.useMaterial3Design) {
+                    "Material 3"
+                } else {
+                    "${preferences.themeMode.label} · ${preferences.pitchBlackAccent.label}"
                 }
                 SettingsRowItem(
                     icon = Icons.Default.Palette,
@@ -820,7 +821,7 @@ private fun GlassNavStyleDialog(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
             shape = RoundedCornerShape(24.dp),
-            color = Color(0xFF141418),
+            color = MaterialTheme.colorScheme.surfaceVariant,
             tonalElevation = 8.dp
         ) {
             Column(
@@ -843,7 +844,7 @@ private fun GlassNavStyleDialog(
                         .fillMaxWidth()
                         .height(142.dp)
                         .clip(RoundedCornerShape(18.dp))
-                        .background(Color(0xFF242529))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     Row(
                         modifier = Modifier

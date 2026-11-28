@@ -50,6 +50,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -99,6 +100,10 @@ uniform float4 uAccent;
 uniform float uExpand;
 uniform float uFrost;
 uniform float uRim;
+// The capsule the droplet sits on, in this node's local pixels. -1 disables.
+uniform float uCapsuleTop;
+uniform float uCapsuleBottom;
+uniform float uHasCapsule;
 
 float sdRoundedBox(float2 p, float2 b, float r) {
     float2 q = abs(p) - b + float2(r);
@@ -170,6 +175,24 @@ half4 main(float2 fragCoord) {
     // bodyShade 0.12, bottom-weighted so labels keep contrast on bright backdrops
     float bodyShade = smoothstep(-0.1, 1.0, p.y / max(halfSize.y, 1.0)) * 0.12;
     rgb *= (1.0 - bodyShade);
+
+    // The capsule seen through the droplet. The slab is clear glass with a 1dp
+    // rim, so its refracted sample alone is nearly invisible; these are its real
+    // top and bottom edges, drawn at their true position so the slab reads as a
+    // separate layer floating under the bubble.
+    if (uHasCapsule > 0.5) {
+        float soft = 1.8;
+        float lineTop = smoothstep(soft, 0.0, abs(fragCoord.y - uCapsuleTop));
+        float lineBot = smoothstep(soft, 0.0, abs(fragCoord.y - uCapsuleBottom));
+        float capLine = clamp(lineTop + lineBot, 0.0, 1.0);
+
+        // groove just inside each rim, so the edge has thickness
+        float groove = smoothstep(3.2, 0.0, abs(fragCoord.y - uCapsuleTop - 2.6))
+                     + smoothstep(3.2, 0.0, abs(fragCoord.y - uCapsuleBottom + 2.6));
+        rgb *= 1.0 - clamp(groove, 0.0, 1.0) * 0.30;
+
+        rgb += float3(1.0) * capLine * 0.20;
+    }
 
     // No faked capsule rim here: the real capsule glass is composited into
     // `contents` before this shader runs, so the droplet refracts the slab it
@@ -318,6 +341,7 @@ private fun RealRefractionGlassLayer(
     rimBrightness: Float = 0.45f,
     underlayLayer: GraphicsLayer? = null,
     underlayPosInRoot: Offset = Offset.Zero,
+    underlayHeightPx: Float = 0f,
     modifier: Modifier = Modifier
 ) {
     val shader = remember { RuntimeShader(LIQUID_GLASS_REFRACTION_AGSL) }
@@ -350,6 +374,14 @@ private fun RealRefractionGlassLayer(
                     shader.setFloatUniform("uExpand", expandProgress)
                     shader.setFloatUniform("uFrost", frost.coerceIn(0f, 1f))
                     shader.setFloatUniform("uRim", rimBrightness.coerceIn(0f, 1f))
+                    if (underlayLayer != null && underlayHeightPx > 0f) {
+                        val capTop = underlayPosInRoot.y - elementPosInRoot.y
+                        shader.setFloatUniform("uCapsuleTop", capTop)
+                        shader.setFloatUniform("uCapsuleBottom", capTop + underlayHeightPx)
+                        shader.setFloatUniform("uHasCapsule", 1f)
+                    } else {
+                        shader.setFloatUniform("uHasCapsule", 0f)
+                    }
                     renderEffect = RenderEffect
                         .createRuntimeShaderEffect(shader, "contents")
                         .asComposeRenderEffect()
@@ -591,8 +623,9 @@ fun LiquidGlassNavBottomBar(
                 .padding(
                     start = 12.dp,
                     end = 12.dp,
-                    top = if (showComposeButton) 14.dp else 4.dp,
-                    bottom = if (showComposeButton) 12.dp else 4.dp
+                    // Room for the droplet to clear the capsule on both sides.
+                    top = if (showComposeButton) 16.dp else 9.dp,
+                    bottom = if (showComposeButton) 14.dp else 9.dp
                 ),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -694,8 +727,40 @@ fun LiquidGlassNavBottomBar(
                             .background(accentColor.copy(alpha = 0.14f))
                     )
 
-                    // Selection droplet. Always present, always slightly proud of
-                    // the capsule; on press / drag / travel it inflates past the
+                    // Contact shadow. The droplet floats above the slab, so it
+                    // darkens what is beneath it before it draws — this is what
+                    // makes it read as "above" rather than "inside".
+                    if (pop > 0.01f) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .offset {
+                                    IntOffset(
+                                        x = (animatedIndex * slotStepPx -
+                                            (dropletWidth.toPx() - slotWidth.toPx()) / 2f).roundToInt(),
+                                        y = 5.dp.toPx().roundToInt()
+                                    )
+                                }
+                                .requiredSize(dropletWidth * 1.08f, dropletHeight * 1.12f)
+                                .graphicsLayer { alpha = 0.55f * pop.coerceIn(0f, 1f) }
+                                .drawBehind {
+                                    drawOval(
+                                        brush = Brush.radialGradient(
+                                            colors = listOf(
+                                                Color.Black.copy(alpha = 0.62f),
+                                                Color.Black.copy(alpha = 0.24f),
+                                                Color.Transparent
+                                            ),
+                                            center = center,
+                                            radius = size.maxDimension * 0.52f
+                                        )
+                                    )
+                                }
+                        )
+                    }
+
+                    // Selection droplet. Absent at rest; on press / drag / travel it
+                    // inflates past the
                     // capsule edge and lifts away from it, stretches along the
                     // travel direction, thins vertically, and squashes on the
                     // rebound — Zangetsu's IndicatorJellyPhysics, rendered outside
@@ -735,6 +800,7 @@ fun LiquidGlassNavBottomBar(
                                 rimBrightness = rimBrightness,
                                 underlayLayer = capsuleGlassLayer,
                                 underlayPosInRoot = capsuleOriginInRoot,
+                                underlayHeightPx = with(density) { capsuleHeight.toPx() },
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else {

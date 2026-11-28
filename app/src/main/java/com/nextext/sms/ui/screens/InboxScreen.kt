@@ -141,7 +141,7 @@ fun InboxScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.background)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         if (!useMaterial3Design) {
             TopAmbientGlow(
@@ -161,8 +161,8 @@ fun InboxScreen(
                     TopAppBar(
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = Color.Transparent,
-                            titleContentColor = if (!useMaterial3Design) Color.White else MaterialTheme.colorScheme.onSurface,
-                            actionIconContentColor = if (!useMaterial3Design) Color.White else MaterialTheme.colorScheme.onSurface
+                            titleContentColor = MaterialTheme.colorScheme.onSurface,
+                            actionIconContentColor = MaterialTheme.colorScheme.onSurface
                         ),
                     title = {
                         Text(
@@ -192,7 +192,7 @@ fun InboxScreen(
                                 )
                                 Text(
                                     text = "Update",
-                                    color = if (!useMaterial3Design) Color.White else accentColor,
+                                    color = accentColor,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1
@@ -349,7 +349,7 @@ fun InboxScreen(
                                     "No messages in ${selectedFilter.name.lowercase().replaceFirstChar { it.uppercase() }}"
                                 },
                                 style = MaterialTheme.typography.titleMedium,
-                                color = if (!useMaterial3Design) Color.White else MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(Modifier.height(6.dp))
                             Text(
@@ -387,7 +387,7 @@ fun InboxScreen(
                                     HorizontalDivider(
                                         modifier = Modifier.fillMaxWidth(0.85f),
                                         thickness = 0.6.dp,
-                                        color = Color.White.copy(alpha = 0.24f)
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.24f)
                                     )
                                 }
                             }
@@ -447,7 +447,7 @@ private fun Photo5TopOverflowMenu(
         onDismissRequest = onDismissRequest,
         modifier = Modifier
             .width(225.dp)
-            .background(Color(0xFF242426))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .border(0.5.dp, Color(0xFF333336), RoundedCornerShape(12.dp))
     ) {
         // 1. Unread only
@@ -458,7 +458,7 @@ private fun Photo5TopOverflowMenu(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Unread only", color = Color.White, fontSize = 15.sp)
+                    Text("Unread only", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
                     Checkbox(
                         checked = unreadOnly,
                         onCheckedChange = { onToggleUnreadOnly() },
@@ -471,79 +471,79 @@ private fun Photo5TopOverflowMenu(
                 }
             },
             leadingIcon = {
-                Icon(Icons.Default.MailOutline, contentDescription = null, tint = Color.White)
+                Icon(Icons.Default.MailOutline, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
             },
             onClick = onToggleUnreadOnly
         )
 
         // 2. Mark All As Read
         DropdownMenuItem(
-            text = { Text("Mark All As Read", color = Color.White, fontSize = 15.sp) },
+            text = { Text("Mark All As Read", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp) },
             leadingIcon = {
-                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color.White)
+                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
             },
             onClick = onMarkAllAsRead
         )
 
         // 3. Refresh Messages
         DropdownMenuItem(
-            text = { Text("Refresh Messages", color = Color.White, fontSize = 15.sp) },
+            text = { Text("Refresh Messages", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp) },
             leadingIcon = {
-                Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.White)
+                Icon(Icons.Default.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
             },
             onClick = onRefreshMessages
         )
 
         // 4. Archive
         DropdownMenuItem(
-            text = { Text("Archive", color = Color.White, fontSize = 15.sp) },
+            text = { Text("Archive", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp) },
             leadingIcon = {
-                Icon(Icons.Default.Archive, contentDescription = null, tint = Color.White)
+                Icon(Icons.Default.Archive, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
             },
             onClick = onArchive
         )
 
         // 5. Starred
         DropdownMenuItem(
-            text = { Text("Starred", color = Color.White, fontSize = 15.sp) },
+            text = { Text("Starred", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp) },
             leadingIcon = {
-                Icon(Icons.Default.Star, contentDescription = null, tint = Color.White)
+                Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
             },
             onClick = onStarred
         )
 
         // 5. Blocked
         DropdownMenuItem(
-            text = { Text("Blocked", color = Color.White, fontSize = 15.sp) },
+            text = { Text("Blocked", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp) },
             leadingIcon = {
-                Icon(Icons.Default.Block, contentDescription = null, tint = Color.White)
+                Icon(Icons.Default.Block, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
             },
             onClick = onBlocked
         )
 
         // 6. Invite friends
         DropdownMenuItem(
-            text = { Text("Invite friends", color = Color.White, fontSize = 15.sp) },
+            text = { Text("Invite friends", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp) },
             leadingIcon = {
-                Icon(Icons.Default.PersonAdd, contentDescription = null, tint = Color.White)
+                Icon(Icons.Default.PersonAdd, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
             },
             onClick = onInviteFriends
         )
 
         // 7. Feedback
         DropdownMenuItem(
-            text = { Text("Feedback", color = Color.White, fontSize = 15.sp) },
+            text = { Text("Feedback", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp) },
             leadingIcon = {
-                Icon(Icons.Default.Assignment, contentDescription = null, tint = Color.White)
+                Icon(Icons.Default.Assignment, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
             },
             onClick = onFeedback
         )
 
         // 8. Settings
         DropdownMenuItem(
-            text = { Text("Settings", color = Color.White, fontSize = 15.sp) },
+            text = { Text("Settings", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp) },
             leadingIcon = {
-                Icon(Icons.Default.Settings, contentDescription = null, tint = Color.White)
+                Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
             },
             onClick = onSettings
         )
@@ -562,7 +562,7 @@ fun SmsOrganizerTopTabs(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.Black)
+            .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 8.dp),
         horizontalArrangement = Arrangement.SpaceAround
     ) {
@@ -744,7 +744,7 @@ private fun Photo4ThreadListRow(
                     onClick = onClick,
                     onLongClick = { showMenu = true }
                 )
-                .background(if (!useMaterial3) Color.Black else Color.Transparent)
+                .background(Color.Transparent)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -763,7 +763,7 @@ private fun Photo4ThreadListRow(
                         text = displayName,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = if (isUnread) FontWeight.Bold else FontWeight.SemiBold,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
@@ -785,7 +785,7 @@ private fun Photo4ThreadListRow(
                     Text(
                         text = thread.lastBody,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (isUnread) Color(0xFFDDDDDD) else Color(0xFF8E8E93),
+                        color = if (isUnread) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)

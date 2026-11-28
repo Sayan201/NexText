@@ -86,7 +86,7 @@ fun FinanceScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(if (!useMaterial3Design) Color.Black else MaterialTheme.colorScheme.background)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         if (!useMaterial3Design) {
             TopAmbientGlow(
@@ -102,7 +102,7 @@ fun FinanceScreen(
                     TopAppBar(
                         colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
                             containerColor = Color.Transparent,
-                            titleContentColor = if (!useMaterial3Design) Color.White else MaterialTheme.colorScheme.onSurface
+                            titleContentColor = MaterialTheme.colorScheme.onSurface
                         ),
                         title = { Text("Passbook & Expenses", fontWeight = FontWeight.Bold) }
                     )

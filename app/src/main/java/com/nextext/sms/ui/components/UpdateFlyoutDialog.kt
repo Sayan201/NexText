@@ -61,7 +61,7 @@ fun UpdateFlyoutDialog(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp),
             shape = RoundedCornerShape(24.dp),
-            color = Color(0xFF141418),
+            color = MaterialTheme.colorScheme.surfaceVariant,
             tonalElevation = 10.dp
         ) {
             Column(
