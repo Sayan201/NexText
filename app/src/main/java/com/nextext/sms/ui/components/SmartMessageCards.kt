@@ -458,7 +458,8 @@ private fun TicketCardBody(
             Spacer(Modifier.width(6.dp))
             Text(
                 text = card.headerTitle,
-                color = MaterialTheme.colorScheme.onSurface,
+                // On the coloured header bar in both themes.
+                color = Color.White,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.8.sp
@@ -552,7 +553,11 @@ private fun TicketCardBody(
 
         Spacer(Modifier.height(6.dp))
 
-        // Perforated Boarding-Pass Divider with Semicircle Notches
+        // Perforated Boarding-Pass Divider with Semicircle Notches.
+        // Colours are resolved here, not inside the draw scope: the Canvas
+        // lambda is not @Composable.
+        val dividerDashColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.20f)
+        val dividerNotchColor = MaterialTheme.colorScheme.background
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -561,19 +566,19 @@ private fun TicketCardBody(
             val midY = size.height / 2f
             val notchRadius = 8.dp.toPx()
             drawLine(
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.20f),
+                color = dividerDashColor,
                 start = Offset(notchRadius + 4.dp.toPx(), midY),
                 end = Offset(size.width - notchRadius - 4.dp.toPx(), midY),
                 strokeWidth = 1.dp.toPx(),
                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f), 0f)
             )
             drawCircle(
-                color = Color.Black,
+                color = dividerNotchColor,
                 radius = notchRadius,
                 center = Offset(0f, midY)
             )
             drawCircle(
-                color = Color.Black,
+                color = dividerNotchColor,
                 radius = notchRadius,
                 center = Offset(size.width, midY)
             )
