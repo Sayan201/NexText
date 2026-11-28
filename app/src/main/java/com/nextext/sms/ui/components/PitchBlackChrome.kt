@@ -60,6 +60,7 @@ import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
@@ -636,11 +637,16 @@ fun LiquidGlassNavBottomBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
 
-            // Crystal Clear Navigation Capsule
+            // Crystal Clear Navigation Capsule (pops slightly on interaction)
+            val capsulePopScale = 1f + 0.03f * expandProgress
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .height(capsuleHeight)
+                    .graphicsLayer {
+                        scaleX = capsulePopScale
+                        scaleY = capsulePopScale
+                    }
             ) {
                 // 1. Clipped capsule backdrop, recorded into its own layer so the
                 //    droplet can refract the glass it is sitting on.
@@ -709,9 +715,9 @@ fun LiquidGlassNavBottomBar(
                     // above and below it, and swells to fill the capsule on press.
                     // No vertical bulge — the reference indicator is a pane, not a bead.
                     val pop = popProgress.coerceIn(0f, 1.5f)
-                    val dropletWidth = slotWidth * (1.04f + lensWidthDelta.coerceAtMost(0.14f) + 0.06f * pop)
-                    val dropletHeight = capsuleHeight * (0.94f + 0.30f * pop) *
-                        (1f + lensHeightDelta * 0.30f).coerceAtLeast(0.95f)
+                    val dropletWidth = slotWidth * (0.96f + lensWidthDelta.coerceAtMost(0.12f) + 0.04f * pop)
+                    val dropletHeight = capsuleHeight * (0.90f + 0.24f * pop) *
+                        (1f + lensHeightDelta * 0.25f).coerceAtLeast(0.95f)
                     val dropletCornerRadiusDp = (dropletHeight.value * 0.38f).coerceIn(22f, 28f)
                     val dropletCorner = RoundedCornerShape(dropletCornerRadiusDp.dp)
 
@@ -829,14 +835,21 @@ fun LiquidGlassNavBottomBar(
                     ) {
                     tabs.forEachIndexed { index, item ->
                         val distance = abs(animatedIndex - index.toFloat())
+                        val inLens = (1f - (distance / 0.65f)).coerceIn(0f, 1f)
                         val isActive = distance < 0.5f
-                        // The lens magnifies its content (Zangetsu: 1.16 natively).
-                        val itemScale = if (isActive) 1f + 0.16f * expandProgress else 1f
+                        val itemScale = 1f + 0.10f * expandProgress * inLens
+                        val inactiveIconTint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f)
+                        val iconTint = lerp(inactiveIconTint, accentColor, inLens)
+                        val labelColor = lerp(
+                            MaterialTheme.colorScheme.onSurfaceVariant,
+                            MaterialTheme.colorScheme.onSurface,
+                            inLens
+                        )
 
                         Column(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(52.dp)
+                                .height(pillHeight)
                                 .padding(horizontal = 2.dp)
                                 .graphicsLayer {
                                     scaleX = itemScale
@@ -854,8 +867,8 @@ fun LiquidGlassNavBottomBar(
                                 Icon(
                                     imageVector = item.icon,
                                     contentDescription = item.label,
-                                    tint = if (isActive) accentColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f),
-                                    modifier = Modifier.size(22.dp)
+                                    tint = iconTint,
+                                    modifier = Modifier.size(21.dp)
                                 )
                                 if (item.unreadCount > 0) {
                                     Box(
@@ -867,12 +880,12 @@ fun LiquidGlassNavBottomBar(
                                     )
                                 }
                             }
-                            Spacer(Modifier.height(4.dp))
+                            Spacer(Modifier.height(3.dp))
                             Text(
                                 text = item.label,
                                 fontSize = 10.sp,
                                 fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
-                                color = if (isActive) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = labelColor,
                                 maxLines = 1
                             )
                         }
