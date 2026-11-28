@@ -373,7 +373,7 @@ fun HyperOsSmartSmsCard(
                         Spacer(Modifier.height(6.dp))
                         Text(
                             text = message.body,
-                            color = Color(0xFFD1D5DB),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp,
                             lineHeight = 17.sp
                         )
@@ -395,7 +395,7 @@ fun HyperOsSmartSmsCard(
                         Text(
                             text = Formatters.formatDateTime(message.timestamp),
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF8E8E93)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         if (message.isStarred) {
                             Icon(
@@ -477,7 +477,7 @@ private fun TicketCardBody(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = card.primaryLabel,
-                    color = Color(0xFF9CA3AF),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp
                 )
                 Text(
@@ -494,7 +494,7 @@ private fun TicketCardBody(
                     if (card.dateText != null) {
                         Text(
                             text = card.dateText,
-                            color = Color(0xFF9CA3AF),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.sp
                         )
                     }
@@ -543,7 +543,7 @@ private fun TicketCardBody(
         } else if (!card.venueText.isNullOrBlank()) {
             Text(
                 text = card.venueText,
-                color = Color(0xFFD1D5DB),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 13.sp,
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 2.dp),
                 maxLines = 1,
@@ -607,7 +607,7 @@ private fun TicketCardBody(
                 ) {
                     if (!card.seatOrClass.isNullOrBlank()) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Seat / Coach", color = Color(0xFF9CA3AF), fontSize = 11.sp)
+                            Text("Seat / Coach", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                             Text(
                                 text = card.seatOrClass,
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -618,7 +618,7 @@ private fun TicketCardBody(
                     }
                     if (!card.fareText.isNullOrBlank()) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Fare", color = Color(0xFF9CA3AF), fontSize = 11.sp)
+                            Text("Fare", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                             Text(
                                 text = card.fareText,
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -724,7 +724,7 @@ private fun OtpCardBody(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "OTP",
-                    color = Color(0xFF9CA3AF),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -756,7 +756,7 @@ private fun OtpCardBody(
         Spacer(Modifier.height(8.dp))
         Text(
             text = card.summary,
-            color = Color(0xFF9CA3AF),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -798,7 +798,7 @@ private fun BankingCardBody(card: SmartSmsCard.BankingCard) {
                 )
                 Text(
                     text = card.subtitle,
-                    color = Color(0xFF9CA3AF),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp
                 )
             }
@@ -814,7 +814,7 @@ private fun BankingCardBody(card: SmartSmsCard.BankingCard) {
         Spacer(Modifier.height(8.dp))
         Text(
             text = card.summary,
-            color = Color(0xFF9CA3AF),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -855,7 +855,7 @@ private fun BillingCardBody(
                 )
                 Text(
                     text = card.subtitle,
-                    color = Color(0xFF9CA3AF),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp
                 )
             }
@@ -873,7 +873,7 @@ private fun BillingCardBody(
         Spacer(Modifier.height(8.dp))
         Text(
             text = card.summary,
-            color = Color(0xFF9CA3AF),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -928,7 +928,7 @@ private fun DeliveryCardBody(card: SmartSmsCard.DeliveryCard) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Delivery Status",
-                    color = Color(0xFF9CA3AF),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp
                 )
                 Text(
@@ -944,7 +944,7 @@ private fun DeliveryCardBody(card: SmartSmsCard.DeliveryCard) {
         Spacer(Modifier.height(8.dp))
         Text(
             text = card.summary,
-            color = Color(0xFF9CA3AF),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,

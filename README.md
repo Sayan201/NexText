@@ -446,7 +446,7 @@ Yes — MIT licensed, source included. See <a href="LICENSE">LICENSE</a>.
 
 Full history in **[CHANGELOG.md](CHANGELOG.md)**.
 
-**Latest — v1.6.6**
+**Latest — v1.6.7**
 
 - 🫧 **Liquid Glass droplet** under the selected tab — always visible, pops wider and taller on every switch, refracts the rim, frosted body, soft outer glow
 - ❄️ **Frost** slider replaces Opacity: **0% crystal clear → 100% heavy frost**, never a black scrim

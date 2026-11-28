@@ -2,6 +2,18 @@
 
 All notable changes to NexText are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is [SemVer](https://semver.org/).
 
+## [1.6.7] — 2026-11-28
+
+### Fixed
+- **The accent now applies in Light mode.** The light scheme had its own hardcoded blue palette and ignored the accent swatch, so every light screen came out default blue. Light is now built from the selected accent, exactly like Dark.
+- **Text is readable in Light mode.** Menus, the overflow list, the glass-style sheet, the update dialog, onboarding cards, OTP cards and the navigation labels were painting literal white (or grey-300) on surfaces that turn near-white. They now read `onSurface` / `onSurfaceVariant`, and white is kept only where it sits on a saturated colour (FAB, filled buttons, ticket header bars, frost preview).
+- **Glass has a visible edge on a light page.** The rim ink follows the theme, so the capsule and droplet draw a dark hairline in Light instead of an invisible white specular.
+
+### Changed
+- **The navigation droplet is a flat pane of glass.** The 3D bead shading, body gradient and the painted capsule bands are gone; the droplet is a thin-rimmed, clear pill inset inside the capsule, and the real capsule layer is composited through it. It still fades in on press / drag / travel and stretches with the jelly physics, but it no longer bulges vertically.
+- The contact shadow under the droplet was removed — the indicator is inset, not elevated.
+- The top accent glow is a tint in Light mode instead of the full AMOLED wash.
+
 ## [1.6.6] — 2026-11-28
 
 ### Fixed

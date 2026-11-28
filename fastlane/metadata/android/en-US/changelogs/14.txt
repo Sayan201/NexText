@@ -1,0 +1,3 @@
+- The accent colour now applies in Light mode; it no longer falls back to default blue.
+- Fixed unreadable text in menus, dialogs, onboarding and the navigation bar in Light mode.
+- The navigation droplet is now a flat pane of glass, with the capsule visible through it.

@@ -159,16 +159,16 @@ fun ThreadScreen(
                         ) {
                             MessageCategory.entries.forEach { cat ->
                                 DropdownMenuItem(
-                                    text = { Text("Move to ${cat.label}", color = Color.White) },
+                                    text = { Text("Move to ${cat.label}", color = MaterialTheme.colorScheme.onSurface) },
                                     onClick = {
                                         showTopMenu = false
                                         onOverrideCategory(cat)
                                     }
                                 )
                             }
-                            HorizontalDivider(color = Color(0xFF333336))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             DropdownMenuItem(
-                                text = { Text("Archive Conversation", color = Color.White) },
+                                text = { Text("Archive Conversation", color = MaterialTheme.colorScheme.onSurface) },
                                 onClick = {
                                     showTopMenu = false
                                     onArchiveThread()
@@ -176,8 +176,8 @@ fun ThreadScreen(
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text(if (isBlocked) "Unblock Sender" else "Block Sender", color = Color.White) },
-                                leadingIcon = { Icon(Icons.Default.Block, contentDescription = null, tint = Color.White) },
+                                text = { Text(if (isBlocked) "Unblock Sender" else "Block Sender", color = MaterialTheme.colorScheme.onSurface) },
+                                leadingIcon = { Icon(Icons.Default.Block, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface) },
                                 onClick = {
                                     showTopMenu = false
                                     onToggleBlock()
@@ -392,7 +392,7 @@ private fun Photo3SendBar(
                                         text = {
                                             Text(
                                                 "SIM ${sim.slotIndex + 1} (${sim.displayName})" + (if (isSelected) " ✓" else ""),
-                                                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White
+                                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                             )
                                         },
                                         onClick = {
@@ -424,7 +424,7 @@ private fun Photo3SendBar(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Send,
                         contentDescription = "Send",
-                        tint = if (draft.isNotBlank()) MaterialTheme.colorScheme.primary else Color(0xFF555555),
+                        tint = if (draft.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -526,7 +526,7 @@ private fun Photo4MessageBubble(
             ) {
                 DropdownMenuItem(
                     text = { Text("Copy Text", color = MaterialTheme.colorScheme.onSurface) },
-                    leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null, tint = Color.White) },
+                    leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface) },
                     onClick = {
                         showMenu = false
                         onCopyBody()
@@ -538,7 +538,7 @@ private fun Photo4MessageBubble(
                         Icon(
                             if (message.isStarred) Icons.Default.StarBorder else Icons.Default.Star,
                             contentDescription = null,
-                            tint = Color.White
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     },
                     onClick = {

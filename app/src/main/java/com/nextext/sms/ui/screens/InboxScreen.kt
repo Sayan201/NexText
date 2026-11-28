@@ -355,7 +355,7 @@ fun InboxScreen(
                             Text(
                                 text = "Everything is organized locally on your device.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF9E9E9E)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             if (hasPermissions) {
                                 Spacer(Modifier.height(12.dp))
@@ -402,7 +402,7 @@ fun InboxScreen(
                     onClick = onOpenCompose,
                     shape = CircleShape,
                     containerColor = accentColor,
-                    contentColor = Color.White,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .navigationBarsPadding()
@@ -448,7 +448,7 @@ private fun Photo5TopOverflowMenu(
         modifier = Modifier
             .width(225.dp)
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .border(0.5.dp, Color(0xFF333336), RoundedCornerShape(12.dp))
+            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
     ) {
         // 1. Unread only
         DropdownMenuItem(
@@ -464,8 +464,8 @@ private fun Photo5TopOverflowMenu(
                         onCheckedChange = { onToggleUnreadOnly() },
                         colors = CheckboxDefaults.colors(
                             checkedColor = MaterialTheme.colorScheme.primary,
-                            uncheckedColor = Color(0xFF9E9E9E),
-                            checkmarkColor = Color.White
+                            uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            checkmarkColor = MaterialTheme.colorScheme.onPrimary
                         )
                     )
                 }
@@ -585,7 +585,7 @@ fun SmsOrganizerTopTabs(
                     Icon(
                         imageVector = icon,
                         contentDescription = label,
-                        tint = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFF888888),
+                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
                     if (index == 0 && unreadMessagesCount > 0) {
@@ -603,7 +603,7 @@ fun SmsOrganizerTopTabs(
                     text = label,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFF888888)
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(5.dp))
                 Box(
@@ -643,14 +643,14 @@ fun LiquidGlassFloatingBottomBar(
     ) {
         Surface(
             shape = RoundedCornerShape(32.dp),
-            color = Color(0xCC11141B),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
             border = BorderStroke(
                 width = 1.dp,
                 brush = Brush.verticalGradient(
                     listOf(
-                        Color(0x66FFFFFF), // Specular rim highlight (Twitter liquid glass)
-                        Color(0x15FFFFFF),
-                        Color(0x05FFFFFF)
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.26f),
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.02f)
                     )
                 )
             ),
@@ -662,8 +662,8 @@ fun LiquidGlassFloatingBottomBar(
                     .background(
                         Brush.verticalGradient(
                             listOf(
-                                Color(0xD9181D26),
-                                Color(0xF20B0E14)
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.45f),
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
                             )
                         )
                     )
@@ -679,8 +679,7 @@ fun LiquidGlassFloatingBottomBar(
                             .clip(RoundedCornerShape(22.dp))
                             .background(
                                 if (isSelected) {
-                                    // WhatsApp active pill container highlight
-                                    Color(0xFF2C3E55)
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
                                 } else {
                                     Color.Transparent
                                 }
@@ -697,7 +696,7 @@ fun LiquidGlassFloatingBottomBar(
                                 text = label,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) Color.White else Color(0xFFB0B3B8)
+                                color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             if (unread > 0) {
                                 Spacer(Modifier.width(6.dp))
@@ -772,7 +771,7 @@ private fun Photo4ThreadListRow(
                     Text(
                         text = Formatters.formatRelativeTime(thread.lastTimestamp),
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (isUnread) MaterialTheme.colorScheme.primary else Color(0xFF888888)
+                        color = if (isUnread) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -804,7 +803,7 @@ private fun Photo4ThreadListRow(
                                 text = thread.unreadCount.toString(),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.onPrimary
                             )
                         }
                     }
@@ -940,13 +939,13 @@ private fun OnboardingBanner(
                     text = title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF9E9E9E)
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
                 )
             }
             Spacer(Modifier.width(12.dp))
@@ -954,7 +953,7 @@ private fun OnboardingBanner(
                 onClick = onClick,
                 colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
-                Text(actionLabel, color = Color.White)
+                Text(actionLabel, color = MaterialTheme.colorScheme.onPrimary)
             }
         }
     }
@@ -985,7 +984,7 @@ private fun RecentOtpCard(
                     text = message.otpCode.orEmpty(),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
             Button(

@@ -69,7 +69,7 @@ fun UpdateFlyoutDialog(
                     .fillMaxWidth()
                     .border(
                         width = 0.8.dp,
-                        color = Color.White.copy(alpha = 0.14f),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                         shape = RoundedCornerShape(24.dp)
                     )
                     .padding(horizontal = 20.dp, vertical = 20.dp)
@@ -96,7 +96,7 @@ fun UpdateFlyoutDialog(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Update Available",
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -112,7 +112,7 @@ fun UpdateFlyoutDialog(
                 Spacer(Modifier.height(14.dp))
                 Text(
                     text = "What's New & Fixes",
-                    color = Color(0xFFD1D5DB),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -123,14 +123,14 @@ fun UpdateFlyoutDialog(
                         .fillMaxWidth()
                         .heightIn(min = 72.dp, max = 220.dp)
                         .clip(RoundedCornerShape(14.dp))
-                        .background(Color.White.copy(alpha = 0.05f))
-                        .border(0.5.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                        .border(0.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f), RoundedCornerShape(14.dp))
                         .padding(12.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
                     Text(
                         text = update.changelog,
-                        color = Color(0xFFE5E7EB),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.86f),
                         fontSize = 13.sp,
                         lineHeight = 19.sp
                     )
@@ -144,7 +144,7 @@ fun UpdateFlyoutDialog(
                     ) {
                         Text(
                             text = "Downloading update...",
-                            color = Color(0xFFD1D5DB),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp
                         )
                         Text(
@@ -162,7 +162,7 @@ fun UpdateFlyoutDialog(
                             .height(6.dp)
                             .clip(RoundedCornerShape(3.dp)),
                         color = accent,
-                        trackColor = Color.White.copy(alpha = 0.12f)
+                        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                     )
                 }
 
@@ -177,14 +177,14 @@ fun UpdateFlyoutDialog(
                         shape = RoundedCornerShape(50),
                         modifier = Modifier.weight(0.9f)
                     ) {
-                        Text("Cancel", color = Color.White)
+                        Text("Cancel", color = MaterialTheme.colorScheme.onSurface)
                     }
                     Button(
                         onClick = onDownloadAndInstall,
                         enabled = !state.isDownloading,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = accent,
-                            contentColor = Color.Black
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
                         shape = RoundedCornerShape(50),
                         modifier = Modifier.weight(1.3f)
@@ -211,7 +211,7 @@ fun UpdateFlyoutDialog(
                 ) {
                     Text(
                         text = "Don't show again",
-                        color = Color(0xFF9CA3AF),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 13.sp
                     )
                 }

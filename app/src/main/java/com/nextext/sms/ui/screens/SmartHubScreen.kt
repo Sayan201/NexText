@@ -131,7 +131,7 @@ fun SmartHubScreen(
                     FloatingActionButton(
                         onClick = { showAddDialog = true },
                         containerColor = accentColor,
-                        contentColor = Color.White,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.padding(bottom = if (!useMaterial3Design) 84.dp else 0.dp)
                     ) {
                         Icon(Icons.Default.Add, contentDescription = "Add reminder")

@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,7 +51,6 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -59,6 +59,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -100,10 +101,11 @@ uniform float4 uAccent;
 uniform float uExpand;
 uniform float uFrost;
 uniform float uRim;
-// The capsule the droplet sits on, in this node's local pixels. -1 disables.
-uniform float uCapsuleTop;
-uniform float uCapsuleBottom;
-uniform float uHasCapsule;
+// 0 = crystal bead (compose button), 1 = flat pane of glass (nav droplet).
+uniform float uFlat;
+// Rim ink: white on AMOLED black, dark slate on a light page. A white
+// specular over a white background is a rim nobody can see.
+uniform float4 uInk;
 
 float sdRoundedBox(float2 p, float2 b, float r) {
     float2 q = abs(p) - b + float2(r);
@@ -129,12 +131,14 @@ half4 main(float2 fragCoord) {
     float distIn = -d;
     float frost = clamp(uFrost, 0.0, 1.0);
     float expandP = clamp(uExpand, 0.0, 1.0);
-    float thickness = 28.0 + 8.0 * expandP;
+    float flat = clamp(uFlat, 0.0, 1.0);
+    float thickness = mix(28.0 + 8.0 * expandP, 16.0 + 4.0 * expandP, flat);
     float edgeRatio = clamp(distIn / thickness, 0.0, 1.0);
 
-    // Strong Snell's Law refraction concentrated in the curved rim (center stays crystal clear)
+    // Snell's Law bending, concentrated in the curved rim. Flat glass bends
+    // gently: the point is to see the capsule behind it, not to smear it.
     float bendFactor = pow(1.0 - edgeRatio, 2.2);
-    float bendAmount = bendFactor * (26.0 + 20.0 * expandP);
+    float bendAmount = bendFactor * mix(26.0 + 20.0 * expandP, 9.0 + 6.0 * expandP, flat);
     float2 refractCoord = clamp(fragCoord - n * bendAmount, float2(1.0), uSize - float2(1.0));
     float2 lo = float2(1.0);
     float2 hi = uSize - float2(1.0);
@@ -165,44 +169,34 @@ half4 main(float2 fragCoord) {
         rgb = mix(rgb, (rgb + c1.rgb + c2.rgb + c3.rgb + c4.rgb) * 0.2, 0.6);
     }
 
-    // Saturation boost (1.15)
+    // Saturation: 1.15 gives the crystal bead its colour pop; flat glass is neutral.
     float luma = dot(rgb, float3(0.299, 0.587, 0.114));
-    rgb = mix(float3(luma), rgb, 1.15);
+    rgb = mix(float3(luma), rgb, mix(1.15, 1.0, flat));
 
-    // Milky frost film (Zangetsu glassColor white @ 0.12) — lightens, never darkens
-    rgb = mix(rgb, mix(rgb, float3(1.0), 0.45) + float3(0.025), 0.40 * frost);
+    // Milky frost film (Zangetsu glassColor white @ 0.12). Flat glass keeps
+    // almost none of it — that film was what hid the capsule underneath.
+    float film = 0.40 * frost * (1.0 - 0.85 * flat);
+    rgb = mix(rgb, mix(rgb, float3(1.0), 0.45) + float3(0.025), film);
 
-    // bodyShade 0.12, bottom-weighted so labels keep contrast on bright backdrops
-    float bodyShade = smoothstep(-0.1, 1.0, p.y / max(halfSize.y, 1.0)) * 0.12;
+    // Faint pane lift so flat glass still reads as a surface, not a hole.
+    rgb = mix(rgb, float3(1.0), 0.05 * flat);
+    // The flat indicator carries the accent as a light tint, the same way the
+    // resting chip does — a pane of tinted glass, not a clear hole in the slab.
+    rgb = mix(rgb, uAccent.rgb, 0.14 * flat);
+
+    // bodyShade 0.12, bottom-weighted so labels keep contrast on bright backdrops.
+    // Flat glass has no body shading at all.
+    float bodyShade = smoothstep(-0.1, 1.0, p.y / max(halfSize.y, 1.0)) * 0.12 * (1.0 - flat);
     rgb *= (1.0 - bodyShade);
 
-    // The capsule seen through the droplet. The slab is clear glass with a 1dp
-    // rim, so its refracted sample alone is nearly invisible; these are its real
-    // top and bottom edges, drawn at their true position so the slab reads as a
-    // separate layer floating under the bubble.
-    if (uHasCapsule > 0.5) {
-        float soft = 1.8;
-        float lineTop = smoothstep(soft, 0.0, abs(fragCoord.y - uCapsuleTop));
-        float lineBot = smoothstep(soft, 0.0, abs(fragCoord.y - uCapsuleBottom));
-        float capLine = clamp(lineTop + lineBot, 0.0, 1.0);
+    // The capsule is composited into `contents` before this shader runs, so the
+    // droplet refracts the slab it sits on. No painted approximation of the rim.
 
-        // groove just inside each rim, so the edge has thickness
-        float groove = smoothstep(3.2, 0.0, abs(fragCoord.y - uCapsuleTop - 2.6))
-                     + smoothstep(3.2, 0.0, abs(fragCoord.y - uCapsuleBottom + 2.6));
-        rgb *= 1.0 - clamp(groove, 0.0, 1.0) * 0.30;
-
-        rgb += float3(1.0) * capLine * 0.20;
-    }
-
-    // No faked capsule rim here: the real capsule glass is composited into
-    // `contents` before this shader runs, so the droplet refracts the slab it
-    // sits on instead of painting an approximation of its edge.
-
-    // Double-band 3D liquid glass bevel scaled by configurable rim brightness
+    // Rim: one thin hairline for flat glass, the full double-band bevel for the bead.
     float rimMult = mix(uRim * 2.22, max(uRim * 2.22, 1.0), uExpand);
     float outerHairline = smoothstep(2.6, 0.0, distIn);
     float groove = smoothstep(1.5, 4.0, distIn) * (1.0 - smoothstep(4.0, 7.5, distIn));
-    rgb *= (1.0 - 0.55 * groove * clamp(rimMult, 0.0, 1.3));
+    rgb *= (1.0 - 0.55 * groove * clamp(rimMult, 0.0, 1.3) * (1.0 - flat));
     float innerBevelBand = smoothstep(3.5, 8.5, distIn) * (1.0 - smoothstep(8.5, 20.0, distIn));
 
     // Directional light from top-left and secondary bottom reflection
@@ -211,11 +205,11 @@ half4 main(float2 fragCoord) {
     float dirLight = pow(topLeftLight, 1.3) * 0.95 + pow(bottomLight, 1.6) * 0.55;
 
     float fresnelGlow = pow(1.0 - edgeRatio, 2.8) * (0.32 + 0.30 * uExpand);
-    float spec = (outerHairline * (0.45 + 0.35 * uExpand + 0.25 * dirLight)
-               + innerBevelBand * dirLight * (0.28 + 0.62 * uExpand)
-               + fresnelGlow * 0.22) * rimMult;
+    float hairline = outerHairline * (0.45 + 0.35 * uExpand + 0.25 * dirLight);
+    float bead = innerBevelBand * dirLight * (0.28 + 0.62 * uExpand) + fresnelGlow * 0.22;
+    float spec = (hairline + bead * (1.0 - 0.85 * flat)) * rimMult;
 
-    rgb += float3(1.0) * spec;
+    rgb += uInk.rgb * spec;
 
     return half4(clamp(rgb, 0.0, 1.0), 1.0);
 }
@@ -229,6 +223,12 @@ fun TopAmbientGlow(
     accentColor: Color,
     modifier: Modifier = Modifier
 ) {
+    // The glow is a lift on AMOLED black; on a light page it is a tint, not a wash.
+    val onLight = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    val topAlpha = if (onLight) 0.10f else 0.24f
+    val midAlpha = if (onLight) 0.04f else 0.08f
+    val coreAlpha = if (onLight) 0.14f else 0.34f
+    val haloAlpha = if (onLight) 0.06f else 0.14f
     Canvas(
         modifier = modifier
             .fillMaxWidth()
@@ -239,8 +239,8 @@ fun TopAmbientGlow(
         drawRect(
             brush = Brush.verticalGradient(
                 colors = listOf(
-                    accentColor.copy(alpha = 0.24f),
-                    accentColor.copy(alpha = 0.08f),
+                    accentColor.copy(alpha = topAlpha),
+                    accentColor.copy(alpha = midAlpha),
                     Color.Transparent
                 ),
                 startY = 0f,
@@ -250,8 +250,8 @@ fun TopAmbientGlow(
         drawRect(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    accentColor.copy(alpha = 0.34f),
-                    accentColor.copy(alpha = 0.14f),
+                    accentColor.copy(alpha = coreAlpha),
+                    accentColor.copy(alpha = haloAlpha),
                     Color.Transparent
                 ),
                 center = Offset(width * 0.5f, 0f),
@@ -301,7 +301,7 @@ fun TopCategoryFilterTabs(
                         text = label,
                         fontSize = 13.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSelected) Color.White else Color(0xFF9CA3AF),
+                        color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -341,11 +341,12 @@ private fun RealRefractionGlassLayer(
     rimBrightness: Float = 0.45f,
     underlayLayer: GraphicsLayer? = null,
     underlayPosInRoot: Offset = Offset.Zero,
-    underlayHeightPx: Float = 0f,
+    flat: Float = 0f,
     modifier: Modifier = Modifier
 ) {
     val shader = remember { RuntimeShader(LIQUID_GLASS_REFRACTION_AGSL) }
     val density = LocalDensity.current
+    val ink = MaterialTheme.colorScheme.onSurface
     var elementPosInRoot by remember { mutableStateOf(Offset.Zero) }
     var elementSize by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
 
@@ -374,14 +375,8 @@ private fun RealRefractionGlassLayer(
                     shader.setFloatUniform("uExpand", expandProgress)
                     shader.setFloatUniform("uFrost", frost.coerceIn(0f, 1f))
                     shader.setFloatUniform("uRim", rimBrightness.coerceIn(0f, 1f))
-                    if (underlayLayer != null && underlayHeightPx > 0f) {
-                        val capTop = underlayPosInRoot.y - elementPosInRoot.y
-                        shader.setFloatUniform("uCapsuleTop", capTop)
-                        shader.setFloatUniform("uCapsuleBottom", capTop + underlayHeightPx)
-                        shader.setFloatUniform("uHasCapsule", 1f)
-                    } else {
-                        shader.setFloatUniform("uHasCapsule", 0f)
-                    }
+                    shader.setFloatUniform("uFlat", flat.coerceIn(0f, 1f))
+                    shader.setFloatUniform("uInk", ink.red, ink.green, ink.blue, ink.alpha)
                     renderEffect = RenderEffect
                         .createRuntimeShaderEffect(shader, "contents")
                         .asComposeRenderEffect()
@@ -455,7 +450,7 @@ fun TopNavDestinationTabs(
                         text = label,
                         fontSize = 13.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSelected) Color.White else Color(0xFF9CA3AF),
+                        color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -699,15 +694,14 @@ fun LiquidGlassNavBottomBar(
                     val totalSpacing = spacingDp * (tabs.size - 1).coerceAtLeast(0)
                     val slotWidth = ((maxWidth - totalSpacing) / tabs.size).coerceAtLeast(36.dp)
                     val slotStepPx = with(density) { (slotWidth + spacingDp).toPx() }
-                    // Droplet geometry. It is deliberately NOT confined to the
-                    // capsule: at rest it already peeks past the rim, and while
-                    // pressed / dragged / travelling it swells taller than the bar
-                    // and lifts off it. Rendered outside the capsule bounds — no
-                    // clipping ancestor, so the bubble can leave the glass slab.
+                    // Droplet geometry. Flat glass: a pill that sits INSIDE the
+                    // capsule, inset top and bottom so the slab's rim stays visible
+                    // above and below it, and swells to fill the capsule on press.
+                    // No vertical bulge — the reference indicator is a pane, not a bead.
                     val pop = popProgress.coerceIn(0f, 1.5f)
-                    val dropletWidth = slotWidth * (1.03f + lensWidthDelta.coerceAtMost(0.16f) + 0.05f * pop)
-                    val dropletHeight = capsuleHeight * (1.05f + 0.17f * pop) *
-                        (1f + lensHeightDelta).coerceAtLeast(0.88f)
+                    val dropletWidth = slotWidth * (1.02f + lensWidthDelta.coerceAtMost(0.12f) + 0.03f * pop)
+                    val dropletHeight = capsuleHeight * (0.86f + 0.10f * pop) *
+                        (1f + lensHeightDelta * 0.30f).coerceAtLeast(0.95f)
                     val dropletCorner = RoundedCornerShape(dropletHeight / 2f)
 
                     // Resting indicator: the solid accent chip Zangetsu leaves
@@ -727,44 +721,10 @@ fun LiquidGlassNavBottomBar(
                             .background(accentColor.copy(alpha = 0.14f))
                     )
 
-                    // Contact shadow. The droplet floats above the slab, so it
-                    // darkens what is beneath it before it draws — this is what
-                    // makes it read as "above" rather than "inside".
-                    if (pop > 0.01f) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .offset {
-                                    IntOffset(
-                                        x = (animatedIndex * slotStepPx -
-                                            (dropletWidth.toPx() - slotWidth.toPx()) / 2f).roundToInt(),
-                                        y = 5.dp.toPx().roundToInt()
-                                    )
-                                }
-                                .requiredSize(dropletWidth * 1.08f, dropletHeight * 1.12f)
-                                .graphicsLayer { alpha = 0.55f * pop.coerceIn(0f, 1f) }
-                                .drawBehind {
-                                    drawOval(
-                                        brush = Brush.radialGradient(
-                                            colors = listOf(
-                                                Color.Black.copy(alpha = 0.62f),
-                                                Color.Black.copy(alpha = 0.24f),
-                                                Color.Transparent
-                                            ),
-                                            center = center,
-                                            radius = size.maxDimension * 0.52f
-                                        )
-                                    )
-                                }
-                        )
-                    }
-
                     // Selection droplet. Absent at rest; on press / drag / travel it
-                    // inflates past the
-                    // capsule edge and lifts away from it, stretches along the
-                    // travel direction, thins vertically, and squashes on the
-                    // rebound — Zangetsu's IndicatorJellyPhysics, rendered outside
-                    // the glass slab rather than clipped inside it.
+                    // fades in as a flat pane of glass inside the capsule, stretches
+                    // along the travel direction and settles on the rebound. The
+                    // capsule is composited underneath, so the slab reads through it.
                     Box(
                         modifier = Modifier
                             .align(Alignment.CenterStart)
@@ -796,11 +756,13 @@ fun LiquidGlassNavBottomBar(
                                 cornerRadiusDp = dropletHeight.value / 2f,
                                 accentColor = accentColor,
                                 expandProgress = (0.35f + 0.65f * pop).coerceIn(0f, 1f),
-                                frost = frost,
                                 rimBrightness = rimBrightness,
                                 underlayLayer = capsuleGlassLayer,
                                 underlayPosInRoot = capsuleOriginInRoot,
-                                underlayHeightPx = with(density) { capsuleHeight.toPx() },
+                                // Flat pane: thin rim, gentle bend, and clear enough
+                                // that the capsule composites through it.
+                                flat = 1f,
+                                frost = frost * 0.30f,
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else {
@@ -811,9 +773,9 @@ fun LiquidGlassNavBottomBar(
                                     .hazeChild(
                                         state = hazeState,
                                         style = HazeDefaults.style(
-                                            backgroundColor = Color.White.copy(alpha = 0.06f + 0.18f * frost),
-                                            blurRadius = (1f + 15f * frost).dp,
-                                            tint = HazeTint(Color.White.copy(alpha = 0.08f + 0.18f * frost))
+                                            backgroundColor = Color.White.copy(alpha = 0.05f + 0.10f * frost),
+                                            blurRadius = (1f + 5f * frost).dp,
+                                            tint = HazeTint(Color.White.copy(alpha = 0.06f + 0.10f * frost))
                                         )
                                     )
                                     .border(
@@ -889,7 +851,7 @@ fun LiquidGlassNavBottomBar(
                                 Icon(
                                     imageVector = item.icon,
                                     contentDescription = item.label,
-                                    tint = if (isActive) accentColor else Color.White.copy(alpha = 0.82f),
+                                    tint = if (isActive) accentColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f),
                                     modifier = Modifier.size(22.dp)
                                 )
                                 if (item.unreadCount > 0) {
@@ -907,7 +869,7 @@ fun LiquidGlassNavBottomBar(
                                 text = item.label,
                                 fontSize = 10.sp,
                                 fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
-                                color = if (isActive) Color.White else Color(0xFFB4BAC6),
+                                color = if (isActive) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1
                             )
                         }
@@ -991,7 +953,7 @@ private fun CircularCrystalComposeButton(
         Icon(
             imageVector = Icons.Default.Edit,
             contentDescription = "New message",
-            tint = Color.White,
+            tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(22.dp)
         )
     }

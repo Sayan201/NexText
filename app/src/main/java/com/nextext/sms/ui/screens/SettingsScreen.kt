@@ -509,14 +509,14 @@ fun SettingsScreen(
                         Spacer(Modifier.height(6.dp))
                         ToggleRow(
                             title = "Material 3 Design",
-                            subtitle = "Use Material 3 design instead of Pitch Black AMOLED",
+                            subtitle = "Use Material 3 design instead of the NexText AMOLED theme",
                             checked = preferences.useMaterial3Design,
                             onCheckedChange = onSetUseMaterial3Design
                         )
                         if (!preferences.useMaterial3Design) {
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                "Pitch Black Accent & Top Glow",
+                                "Accent colour & top glow",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = textColor
@@ -542,7 +542,7 @@ fun SettingsScreen(
                                                     .background(swatchColor)
                                                     .border(
                                                         width = if (isSelected) 1.5.dp else 0.5.dp,
-                                                        color = Color.White.copy(alpha = if (isSelected) 0.9f else 0.3f),
+                                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isSelected) 0.9f else 0.3f),
                                                         shape = CircleShape
                                                     )
                                             )
@@ -556,10 +556,10 @@ fun SettingsScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color.White.copy(alpha = 0.06f))
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                                     .border(
                                         width = 0.6.dp,
-                                        color = Color.White.copy(alpha = 0.14f),
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                                         shape = RoundedCornerShape(12.dp)
                                     )
                                     .clickable { showGlassStyleDialog = true }
@@ -680,7 +680,7 @@ fun SettingsScreen(
             title = { Text("About NexText") },
             text = {
                 Text(
-                    "NexText is a 100% on-device smart SMS organizer with Pitch Black AMOLED & Liquid Glass styling, automatic OTP detection, Finance passbook tracking, and Reminders. Your messages are parsed on your phone. The only network request the app makes is an update check against GitHub Releases — it carries no message data, no identifiers, and no analytics."
+                    "NexText is a 100% on-device smart SMS organizer with AMOLED & Liquid Glass styling, automatic OTP detection, Finance passbook tracking, and Reminders. Your messages are parsed on your phone. The only network request the app makes is an update check against GitHub Releases — it carries no message data, no identifiers, and no analytics."
                 )
             },
             confirmButton = {
@@ -832,7 +832,7 @@ private fun GlassNavStyleDialog(
             ) {
                 Text(
                     text = "Glass navigation bar size and style",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -920,7 +920,7 @@ private fun GlassNavStyleDialog(
                 Spacer(Modifier.height(10.dp))
                 Text(
                     text = "Buttons shown: ${previewTabs.size} of ${previewTabs.size}",
-                    color = Color(0xFFB4BAC6),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -969,7 +969,7 @@ private fun GlassNavStyleDialog(
                             frostPercent <= 75 -> "Frosted — glass reads as glass"
                             else -> "Heavy frost — strong blur and lift"
                         },
-                        color = Color(0xFFB4BAC6),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 11.sp,
                         modifier = Modifier.weight(1f)
                     )
@@ -996,8 +996,8 @@ private fun GlassNavStyleDialog(
                             rimBrightnessPercent = 45
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF3A3B40),
-                            contentColor = Color.White
+                            containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
+                            contentColor = MaterialTheme.colorScheme.onSurface
                         ),
                         shape = RoundedCornerShape(50),
                         modifier = Modifier.weight(1f)
@@ -1007,8 +1007,8 @@ private fun GlassNavStyleDialog(
                     Button(
                         onClick = onDismiss,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF3A3B40),
-                            contentColor = Color.White
+                            containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
+                            contentColor = MaterialTheme.colorScheme.onSurface
                         ),
                         shape = RoundedCornerShape(50),
                         modifier = Modifier.weight(1f)
@@ -1026,8 +1026,8 @@ private fun GlassNavStyleDialog(
                             )
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFF3F4F6),
-                            contentColor = Color.Black
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
                         shape = RoundedCornerShape(50),
                         modifier = Modifier.weight(1f)
@@ -1090,13 +1090,13 @@ private fun GlassStyleSliderRow(
         ) {
             Text(
                 text = label,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
             Text(
                 text = valueText,
-                color = Color(0xFFD1D5DB),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -1106,9 +1106,9 @@ private fun GlassStyleSliderRow(
             onValueChange = onValueChange,
             valueRange = valueRange,
             colors = SliderDefaults.colors(
-                thumbColor = Color.White,
-                activeTrackColor = Color(0xFF60A5FA),
-                inactiveTrackColor = Color(0xFF3F3F46)
+                thumbColor = MaterialTheme.colorScheme.primary,
+                activeTrackColor = MaterialTheme.colorScheme.primary,
+                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f)
             ),
             modifier = Modifier.fillMaxWidth()
         )
