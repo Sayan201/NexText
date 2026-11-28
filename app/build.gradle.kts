@@ -14,8 +14,8 @@ android {
         applicationId = "com.nextext.sms"
         minSdk = 26
         targetSdk = 35
-        versionCode = 16
-        versionName = "1.6.9-dev.1"
+        versionCode = 17
+        versionName = "1.6.9-dev.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

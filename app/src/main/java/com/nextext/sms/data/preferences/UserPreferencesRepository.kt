@@ -76,7 +76,7 @@ data class UserPreferences(
     val glassBarMaxWidthPercent: Int = 100,
     val glassBarButtonSpacingDp: Int = 4,
     val glassBarFrostPercent: Int = 35,
-    val glassBarRimBrightnessPercent: Int = 45,
+    val glassBarRimBrightnessPercent: Int = 3,
     val dismissedUpdateVersion: String? = null,
     val receiveDevUpdates: Boolean = false
 )
@@ -148,7 +148,7 @@ class UserPreferencesRepository(private val context: Context) {
             glassBarMaxWidthPercent = (prefs[Keys.GLASS_MAX_WIDTH_PCT] ?: 100).coerceIn(65, 100),
             glassBarButtonSpacingDp = (prefs[Keys.GLASS_BTN_SPACING_DP] ?: 4).coerceIn(0, 24),
             glassBarFrostPercent = (prefs[Keys.GLASS_FROST_PCT] ?: 35).coerceIn(0, 100),
-            glassBarRimBrightnessPercent = (prefs[Keys.GLASS_RIM_BRIGHTNESS_PCT] ?: 45).coerceIn(0, 100),
+            glassBarRimBrightnessPercent = (prefs[Keys.GLASS_RIM_BRIGHTNESS_PCT] ?: 3).coerceIn(0, 100),
             dismissedUpdateVersion = prefs[Keys.DISMISSED_UPDATE_VERSION],
             receiveDevUpdates = prefs[Keys.RECEIVE_DEV_UPDATES] ?: false
         )

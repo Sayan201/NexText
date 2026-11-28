@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
@@ -123,10 +124,12 @@ half4 main(float2 fragCoord) {
     }
 
     float2 eps = float2(1.5, 0.0);
-    float2 n = normalize(float2(
+    float2 grad = float2(
         sdRoundedBox(p + eps.xy, halfSize, r) - sdRoundedBox(p - eps.xy, halfSize, r),
         sdRoundedBox(p + eps.yx, halfSize, r) - sdRoundedBox(p - eps.yx, halfSize, r)
-    ));
+    );
+    float gradLen = length(grad);
+    float2 n = gradLen > 1e-4 ? (grad / gradLen) : float2(0.0, -1.0);
 
     float distIn = -d;
     float frost = clamp(uFrost, 0.0, 1.0);
@@ -193,8 +196,8 @@ half4 main(float2 fragCoord) {
     float bodyShade = smoothstep(-0.1, 1.0, p.y / max(halfSize.y, 1.0)) * 0.10 * (1.0 - 0.5 * flatness);
     rgb *= (1.0 - bodyShade);
 
-    // Full 3D double-band liquid glass bevel (hairline + dark groove + glossy inner bevel)
-    float rimMult = mix(uRim * 2.22, max(uRim * 2.22, 1.0), expandP);
+    // Full 3D double-band liquid glass bevel scaled by uRim on both capsule and droplet
+    float rimMult = uRim * (2.22 + 0.60 * expandP);
     float outerHairline = smoothstep(2.6, 0.0, distIn);
     float groove = smoothstep(1.5, 4.0, distIn) * (1.0 - smoothstep(4.0, 7.5, distIn));
     rgb *= (1.0 - 0.50 * groove * clamp(rimMult, 0.0, 1.3));
@@ -339,9 +342,10 @@ private fun RealRefractionGlassLayer(
     accentColor: Color,
     expandProgress: Float,
     frost: Float = 0.35f,
-    rimBrightness: Float = 0.45f,
+    rimBrightness: Float = 0.03f,
     underlayLayer: GraphicsLayer? = null,
     underlayPosInRoot: Offset = Offset.Zero,
+    underlayScaleY: Float = 1f,
     flat: Float = 0f,
     modifier: Modifier = Modifier
 ) {
@@ -394,16 +398,21 @@ private fun RealRefractionGlassLayer(
         translate(left = -offsetX, top = -offsetY) {
             drawLayer(backdropLayer)
         }
-        // Composite the glass slab the droplet sits on top of the screen layer.
-        // It becomes part of `contents`, so the shader refracts the capsule's
-        // body and rim where they overlap — glass over glass, not an opaque
-        // bubble masking a bite out of the slab.
+        // Composite the glass slab the droplet sits on top of the screen layer,
+        // scaled vertically by `underlayScaleY` to create the optical demagnification
+        // illusion where the lower capsule visibly shrinks behind the upper glass slab.
         if (underlayLayer != null) {
-            translate(
-                left = underlayPosInRoot.x - elementPosInRoot.x,
-                top = underlayPosInRoot.y - elementPosInRoot.y
-            ) {
-                drawLayer(underlayLayer)
+            val left = underlayPosInRoot.x - elementPosInRoot.x
+            val top = underlayPosInRoot.y - elementPosInRoot.y
+            val pivotY = elementSize.height * 0.5f - top
+            translate(left = left, top = top) {
+                scale(
+                    scaleX = 1f,
+                    scaleY = underlayScaleY,
+                    pivot = Offset(elementSize.width * 0.5f - left, pivotY)
+                ) {
+                    drawLayer(underlayLayer)
+                }
             }
         }
     }
@@ -504,7 +513,7 @@ fun LiquidGlassNavBottomBar(
     maxWidthPercent: Int = 100,
     buttonSpacingDp: Int = 4,
     frostPercent: Int = 35,
-    rimBrightnessPercent: Int = 45,
+    rimBrightnessPercent: Int = 3,
     showComposeButton: Boolean = true
 ) {
     val heightScale = (heightPercent.coerceIn(80, 135) / 100f)
@@ -708,7 +717,8 @@ fun LiquidGlassNavBottomBar(
                     val dropletWidth = slotWidth * (1.04f + lensWidthDelta.coerceAtMost(0.14f) + 0.06f * pop)
                     val dropletHeight = capsuleHeight * (0.94f + 0.30f * pop) *
                         (1f + lensHeightDelta * 0.30f).coerceAtLeast(0.95f)
-                    val dropletCorner = RoundedCornerShape(dropletHeight / 2f)
+                    val dropletCornerRadiusDp = (dropletHeight.value * 0.30f).coerceIn(18f, 24f)
+                    val dropletCorner = RoundedCornerShape(dropletCornerRadiusDp.dp)
 
                     // Resting indicator: the solid accent chip Zangetsu leaves
                     // under the selected tab (indicatorColor: accent @ 0.14).
@@ -728,8 +738,8 @@ fun LiquidGlassNavBottomBar(
                     )
 
                     // Selection glass slab. Absent at rest; on press / drag / travel it
-                    // pops out above and below the lower capsule as a 3D crystal glass
-                    // slab, refracting the capsule rim and backdrop underneath through it.
+                    // pops out above and below the lower capsule as a rectangular-oval 3D
+                    // glass slab, demagnifying the capsule behind it through the glass.
                     Box(
                         modifier = Modifier
                             .align(Alignment.CenterStart)
@@ -747,16 +757,18 @@ fun LiquidGlassNavBottomBar(
                             }
                     ) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdropLayer != null) {
+                            val expandP = (0.35f + 0.65f * pop).coerceIn(0f, 1f)
                             RealRefractionGlassLayer(
                                 backdropLayer = backdropLayer,
                                 backdropOriginInRoot = backdropOriginInRoot,
                                 shape = dropletCorner,
-                                cornerRadiusDp = dropletHeight.value / 2f,
+                                cornerRadiusDp = dropletCornerRadiusDp,
                                 accentColor = accentColor,
-                                expandProgress = (0.35f + 0.65f * pop).coerceIn(0f, 1f),
+                                expandProgress = expandP,
                                 rimBrightness = rimBrightness,
                                 underlayLayer = capsuleGlassLayer,
                                 underlayPosInRoot = capsuleOriginInRoot,
+                                underlayScaleY = 1f - 0.22f * expandP,
                                 flat = 0.25f,
                                 frost = frost * 0.14f,
                                 modifier = Modifier.fillMaxSize()
