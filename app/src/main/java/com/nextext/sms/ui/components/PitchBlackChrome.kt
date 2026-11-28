@@ -132,22 +132,31 @@ half4 main(float2 fragCoord) {
     float frost = clamp(uFrost, 0.0, 1.0);
     float expandP = clamp(uExpand, 0.0, 1.0);
     float flatness = clamp(uFlat, 0.0, 1.0);
-    float thickness = mix(28.0 + 8.0 * expandP, 16.0 + 4.0 * expandP, flatness);
+    float thickness = mix(28.0 + 8.0 * expandP, 22.0 + 8.0 * expandP, flatness);
     float edgeRatio = clamp(distIn / thickness, 0.0, 1.0);
 
-    // Snell's Law bending, concentrated in the curved rim. Flat glass bends
-    // gently: the point is to see the capsule behind it, not to smear it.
+    // Snell's Law bending concentrated in the curved rim so the capsule edges
+    // visibly bend & wrap around the top/bottom of the popped-out glass slab.
     float bendFactor = pow(1.0 - edgeRatio, 2.2);
-    float bendAmount = bendFactor * mix(26.0 + 20.0 * expandP, 9.0 + 6.0 * expandP, flatness);
-    float2 refractCoord = clamp(fragCoord - n * bendAmount, float2(1.0), uSize - float2(1.0));
+    float bendAmount = bendFactor * mix(26.0 + 20.0 * expandP, 20.0 + 16.0 * expandP, flatness);
     float2 lo = float2(1.0);
     float2 hi = uSize - float2(1.0);
+    float2 refractCoord = clamp(fragCoord - n * bendAmount, lo, hi);
 
-    // Frost body: 12-tap golden-angle disc, radius grows with uFrost (Zangetsu blur 3 at ~35%)
-    half4 acc = contents.eval(refractCoord);
+    // Sub-pixel 4-tap anti-aliasing at refractCoord prevents thin 0.6dp dividers
+    // from aliasing into dashed lines during refraction or low-tap frost.
+    half4 cBase = (
+        contents.eval(refractCoord) +
+        contents.eval(clamp(refractCoord + float2(0.85, 0.85), lo, hi)) +
+        contents.eval(clamp(refractCoord + float2(-0.85, 0.85), lo, hi)) +
+        contents.eval(clamp(refractCoord + float2(0.0, -1.0), lo, hi))
+    ) * 0.25;
+
+    // Frost body: 12-tap golden-angle disc, radius grows with uFrost
+    half4 acc = cBase;
     float taps = 1.0;
     if (frost > 0.02) {
-        float radius = 2.0 + 14.0 * frost;
+        float radius = 1.5 + 10.0 * frost;
         for (int i = 0; i < 12; i++) {
             float fi = float(i);
             float ang = fi * 2.39996323;
@@ -159,44 +168,36 @@ half4 main(float2 fragCoord) {
     }
     float3 rgb = (acc / taps).rgb;
 
-    // Rim-only optical softness; fades out as the body frost takes over
-    float rimBlur = 2.2 * (1.0 - edgeRatio) * (1.0 - 0.6 * frost);
+    // Rim-only optical softness
+    float rimBlur = 2.0 * (1.0 - edgeRatio) * (1.0 - 0.5 * frost);
     if (rimBlur > 0.35) {
         half4 c1 = contents.eval(clamp(refractCoord + float2(rimBlur, 0.0), lo, hi));
         half4 c2 = contents.eval(clamp(refractCoord - float2(rimBlur, 0.0), lo, hi));
         half4 c3 = contents.eval(clamp(refractCoord + float2(0.0, rimBlur), lo, hi));
         half4 c4 = contents.eval(clamp(refractCoord - float2(0.0, rimBlur), lo, hi));
-        rgb = mix(rgb, (rgb + c1.rgb + c2.rgb + c3.rgb + c4.rgb) * 0.2, 0.6);
+        rgb = mix(rgb, (rgb + c1.rgb + c2.rgb + c3.rgb + c4.rgb) * 0.2, 0.55);
     }
 
-    // Saturation: 1.15 gives the crystal bead its colour pop; flat glass is neutral.
+    // Gentle saturation boost so the refracted capsule & backdrop stay vivid
     float luma = dot(rgb, float3(0.299, 0.587, 0.114));
-    rgb = mix(float3(luma), rgb, mix(1.15, 1.0, flatness));
+    rgb = mix(float3(luma), rgb, mix(1.15, 1.08, flatness));
 
-    // Milky frost film (Zangetsu glassColor white @ 0.12). Flat glass keeps
-    // almost none of it — that film was what hid the capsule underneath.
-    float film = 0.40 * frost * (1.0 - 0.85 * flatness);
-    rgb = mix(rgb, mix(rgb, float3(1.0), 0.45) + float3(0.025), film);
+    // Milky frost film (kept subtle on the popped slab so the capsule behind it stays clear)
+    float film = 0.36 * frost * (1.0 - 0.75 * flatness);
+    rgb = mix(rgb, mix(rgb, float3(1.0), 0.45) + float3(0.02), film);
 
-    // Faint pane lift so flat glass still reads as a surface, not a hole.
-    rgb = mix(rgb, float3(1.0), 0.05 * flatness);
-    // The flat indicator carries the accent as a light tint, the same way the
-    // resting chip does — a pane of tinted glass, not a clear hole in the slab.
-    rgb = mix(rgb, uAccent.rgb, 0.14 * flatness);
+    // Subtle surface lift on the glass slab (no solid accent paint wash)
+    rgb = mix(rgb, float3(1.0), 0.03 * flatness);
 
-    // bodyShade 0.12, bottom-weighted so labels keep contrast on bright backdrops.
-    // Flat glass has no body shading at all.
-    float bodyShade = smoothstep(-0.1, 1.0, p.y / max(halfSize.y, 1.0)) * 0.12 * (1.0 - flatness);
+    // Subtle bottom-weighted body shading for 3D depth
+    float bodyShade = smoothstep(-0.1, 1.0, p.y / max(halfSize.y, 1.0)) * 0.10 * (1.0 - 0.5 * flatness);
     rgb *= (1.0 - bodyShade);
 
-    // The capsule is composited into `contents` before this shader runs, so the
-    // droplet refracts the slab it sits on. No painted approximation of the rim.
-
-    // Rim: one thin hairline for flat glass, the full double-band bevel for the bead.
-    float rimMult = mix(uRim * 2.22, max(uRim * 2.22, 1.0), uExpand);
+    // Full 3D double-band liquid glass bevel (hairline + dark groove + glossy inner bevel)
+    float rimMult = mix(uRim * 2.22, max(uRim * 2.22, 1.0), expandP);
     float outerHairline = smoothstep(2.6, 0.0, distIn);
     float groove = smoothstep(1.5, 4.0, distIn) * (1.0 - smoothstep(4.0, 7.5, distIn));
-    rgb *= (1.0 - 0.55 * groove * clamp(rimMult, 0.0, 1.3) * (1.0 - flatness));
+    rgb *= (1.0 - 0.50 * groove * clamp(rimMult, 0.0, 1.3));
     float innerBevelBand = smoothstep(3.5, 8.5, distIn) * (1.0 - smoothstep(8.5, 20.0, distIn));
 
     // Directional light from top-left and secondary bottom reflection
@@ -204,10 +205,10 @@ half4 main(float2 fragCoord) {
     float bottomLight = clamp(n.y, 0.0, 1.0);
     float dirLight = pow(topLeftLight, 1.3) * 0.95 + pow(bottomLight, 1.6) * 0.55;
 
-    float fresnelGlow = pow(1.0 - edgeRatio, 2.8) * (0.32 + 0.30 * uExpand);
-    float hairline = outerHairline * (0.45 + 0.35 * uExpand + 0.25 * dirLight);
-    float bead = innerBevelBand * dirLight * (0.28 + 0.62 * uExpand) + fresnelGlow * 0.22;
-    float spec = (hairline + bead * (1.0 - 0.85 * flatness)) * rimMult;
+    float fresnelGlow = pow(1.0 - edgeRatio, 2.8) * (0.32 + 0.30 * expandP);
+    float hairline = outerHairline * (0.45 + 0.35 * expandP + 0.25 * dirLight);
+    float bead = innerBevelBand * dirLight * (0.28 + 0.62 * expandP) + fresnelGlow * 0.22;
+    float spec = (hairline + bead) * rimMult;
 
     rgb += uInk.rgb * spec;
 
@@ -704,8 +705,8 @@ fun LiquidGlassNavBottomBar(
                     // above and below it, and swells to fill the capsule on press.
                     // No vertical bulge — the reference indicator is a pane, not a bead.
                     val pop = popProgress.coerceIn(0f, 1.5f)
-                    val dropletWidth = slotWidth * (1.02f + lensWidthDelta.coerceAtMost(0.12f) + 0.03f * pop)
-                    val dropletHeight = capsuleHeight * (0.86f + 0.10f * pop) *
+                    val dropletWidth = slotWidth * (1.04f + lensWidthDelta.coerceAtMost(0.14f) + 0.06f * pop)
+                    val dropletHeight = capsuleHeight * (0.94f + 0.30f * pop) *
                         (1f + lensHeightDelta * 0.30f).coerceAtLeast(0.95f)
                     val dropletCorner = RoundedCornerShape(dropletHeight / 2f)
 
@@ -726,10 +727,9 @@ fun LiquidGlassNavBottomBar(
                             .background(accentColor.copy(alpha = 0.14f))
                     )
 
-                    // Selection droplet. Absent at rest; on press / drag / travel it
-                    // fades in as a flat pane of glass inside the capsule, stretches
-                    // along the travel direction and settles on the rebound. The
-                    // capsule is composited underneath, so the slab reads through it.
+                    // Selection glass slab. Absent at rest; on press / drag / travel it
+                    // pops out above and below the lower capsule as a 3D crystal glass
+                    // slab, refracting the capsule rim and backdrop underneath through it.
                     Box(
                         modifier = Modifier
                             .align(Alignment.CenterStart)
@@ -738,18 +738,11 @@ fun LiquidGlassNavBottomBar(
                                 IntOffset(
                                     x = (animatedIndex * slotStepPx - (wPx - slotWidth.toPx()) / 2f)
                                         .roundToInt(),
-                                    // No vertical bias: the droplet is centred on the
-                                    // capsule, so it breaks the top and bottom edges by
-                                    // the same margin on every frame.
                                     y = 0
                                 )
                             }
                             .requiredSize(dropletWidth, dropletHeight)
                             .graphicsLayer {
-                                // Nothing at rest. The droplet is an interaction
-                                // response, not a resident indicator — it dissolves
-                                // in on press / drag / travel and leaves the accent
-                                // chip as the resting state.
                                 alpha = (pop * 1.15f).coerceIn(0f, 1f)
                             }
                     ) {
@@ -764,10 +757,8 @@ fun LiquidGlassNavBottomBar(
                                 rimBrightness = rimBrightness,
                                 underlayLayer = capsuleGlassLayer,
                                 underlayPosInRoot = capsuleOriginInRoot,
-                                // Flat pane: thin rim, gentle bend, and clear enough
-                                // that the capsule composites through it.
-                                flat = 1f,
-                                frost = frost * 0.30f,
+                                flat = 0.25f,
+                                frost = frost * 0.14f,
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else {
