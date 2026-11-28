@@ -26,6 +26,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.CreditCard
@@ -131,7 +132,8 @@ fun SettingsScreen(
     onUnlinkDriveFolder: () -> Unit = {},
     onUnblockSender: (String) -> Unit,
     isCheckingUpdates: Boolean = false,
-    onCheckForUpdates: () -> Unit = {}
+    onCheckForUpdates: () -> Unit = {},
+    onSetReceiveDevUpdates: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     var expandedSection by remember { mutableStateOf<String?>("theme") }
@@ -645,6 +647,43 @@ fun SettingsScreen(
                     onClick = onCheckForUpdates
                 )
                 HorizontalDivider(thickness = 0.6.dp, color = dividerColor)
+            }
+
+            if (com.nextext.sms.update.AppUpdater.isSupported) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSetReceiveDevUpdates(!preferences.receiveDevUpdates) }
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.BugReport,
+                            contentDescription = null,
+                            tint = textColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Receive Dev updates",
+                                color = textColor,
+                                fontSize = 16.sp
+                            )
+                            Text(
+                                text = "Include pre-release Dev builds in update checks",
+                                color = subTextColor,
+                                fontSize = 12.sp
+                            )
+                        }
+                        Switch(
+                            checked = preferences.receiveDevUpdates,
+                            onCheckedChange = onSetReceiveDevUpdates
+                        )
+                    }
+                    HorizontalDivider(thickness = 0.6.dp, color = dividerColor)
+                }
             }
 
             // 11. About

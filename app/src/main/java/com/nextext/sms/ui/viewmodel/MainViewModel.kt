@@ -637,6 +637,13 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         )
     }
 
+    fun setReceiveDevUpdates(enabled: Boolean) {
+        viewModelScope.launch {
+            prefsRepo.setReceiveDevUpdates(enabled)
+            checkForUpdates(userInitiated = false)
+        }
+    }
+
     fun checkForUpdates(userInitiated: Boolean) {
         if (!AppUpdater.isSupported) {
             if (userInitiated) {
@@ -647,7 +654,8 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         if (_updateState.value.isChecking) return
         viewModelScope.launch {
             _updateState.value = _updateState.value.copy(isChecking = true)
-            val latest = AppUpdater.fetchLatestRelease()
+            val includeDev = prefsRepo.preferences.first().receiveDevUpdates
+            val latest = AppUpdater.fetchLatestRelease(includeDev = includeDev)
             if (latest == null) {
                 _updateState.value = _updateState.value.copy(isChecking = false)
                 if (userInitiated) {

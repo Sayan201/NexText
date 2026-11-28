@@ -77,7 +77,8 @@ data class UserPreferences(
     val glassBarButtonSpacingDp: Int = 4,
     val glassBarFrostPercent: Int = 35,
     val glassBarRimBrightnessPercent: Int = 45,
-    val dismissedUpdateVersion: String? = null
+    val dismissedUpdateVersion: String? = null,
+    val receiveDevUpdates: Boolean = false
 )
 
 class UserPreferencesRepository(private val context: Context) {
@@ -107,6 +108,7 @@ class UserPreferencesRepository(private val context: Context) {
         val GLASS_FROST_PCT = intPreferencesKey("glass_opacity_pct")
         val GLASS_RIM_BRIGHTNESS_PCT = intPreferencesKey("glass_rim_brightness_pct")
         val DISMISSED_UPDATE_VERSION = stringPreferencesKey("dismissed_update_version")
+        val RECEIVE_DEV_UPDATES = booleanPreferencesKey("receive_dev_updates")
     }
 
     val preferences: Flow<UserPreferences> = context.dataStore.data.map { prefs ->
@@ -147,7 +149,8 @@ class UserPreferencesRepository(private val context: Context) {
             glassBarButtonSpacingDp = (prefs[Keys.GLASS_BTN_SPACING_DP] ?: 4).coerceIn(0, 24),
             glassBarFrostPercent = (prefs[Keys.GLASS_FROST_PCT] ?: 35).coerceIn(0, 100),
             glassBarRimBrightnessPercent = (prefs[Keys.GLASS_RIM_BRIGHTNESS_PCT] ?: 45).coerceIn(0, 100),
-            dismissedUpdateVersion = prefs[Keys.DISMISSED_UPDATE_VERSION]
+            dismissedUpdateVersion = prefs[Keys.DISMISSED_UPDATE_VERSION],
+            receiveDevUpdates = prefs[Keys.RECEIVE_DEV_UPDATES] ?: false
         )
     }
 
@@ -247,5 +250,9 @@ class UserPreferencesRepository(private val context: Context) {
                 prefs[Keys.DISMISSED_UPDATE_VERSION] = version
             }
         }
+    }
+
+    suspend fun setReceiveDevUpdates(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.RECEIVE_DEV_UPDATES] = enabled }
     }
 }

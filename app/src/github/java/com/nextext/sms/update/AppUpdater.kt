@@ -8,6 +8,7 @@ import android.provider.Settings
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -19,7 +20,8 @@ data class AppUpdateRelease(
     val tagName: String,
     val changelog: String,
     val downloadUrl: String,
-    val releaseUrl: String
+    val releaseUrl: String,
+    val isPreRelease: Boolean = false
 )
 
 object AppUpdater {
@@ -27,9 +29,12 @@ object AppUpdater {
 
     private const val LATEST_RELEASE_API =
         "https://api.github.com/repos/Sayan201/NexText/releases/latest"
+    private const val ALL_RELEASES_API =
+        "https://api.github.com/repos/Sayan201/NexText/releases?per_page=10"
 
-    suspend fun fetchLatestRelease(): AppUpdateRelease? = withContext(Dispatchers.IO) {
-        val conn = (URL(LATEST_RELEASE_API).openConnection() as HttpURLConnection).apply {
+    suspend fun fetchLatestRelease(includeDev: Boolean = false): AppUpdateRelease? = withContext(Dispatchers.IO) {
+        val url = if (includeDev) ALL_RELEASES_API else LATEST_RELEASE_API
+        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 8000
             readTimeout = 8000
@@ -39,45 +44,17 @@ object AppUpdater {
         try {
             if (conn.responseCode !in 200..299) return@withContext null
             val body = conn.inputStream.bufferedReader().use { it.readText() }
-            val json = JSONObject(body)
-            val tagName = json.optString("tag_name").trim()
-            if (tagName.isBlank()) return@withContext null
-            val version = tagName.removePrefix("v").removePrefix("V")
-            val changelog = json.optString("body").trim()
-                .ifBlank { "Bug fixes and performance improvements." }
-            val releaseUrl = json.optString("html_url")
-                .ifBlank { "https://github.com/Sayan201/NexText/releases" }
-
-            var apkUrl = ""
-            val assets = json.optJSONArray("assets")
-            if (assets != null) {
-                for (i in 0 until assets.length()) {
-                    val asset = assets.optJSONObject(i) ?: continue
-                    val name = asset.optString("name")
-                    val url = asset.optString("browser_download_url")
-                    if (name.equals("app-github-release.apk", ignoreCase = true) ||
-                        name.equals("app-release.apk", ignoreCase = true)
-                    ) {
-                        apkUrl = url
-                        break
-                    }
-                    if (apkUrl.isBlank() && name.endsWith(".apk", ignoreCase = true) &&
-                        !name.contains("debug", ignoreCase = true) &&
-                        !name.contains("unsigned", ignoreCase = true)
-                    ) {
-                        apkUrl = url
-                    }
-                }
+            if (!includeDev) {
+                return@withContext parseReleaseJson(JSONObject(body))
             }
-            if (apkUrl.isBlank()) return@withContext null
-
-            AppUpdateRelease(
-                version = version,
-                tagName = tagName,
-                changelog = changelog,
-                downloadUrl = apkUrl,
-                releaseUrl = releaseUrl
-            )
+            val array = JSONArray(body)
+            for (i in 0 until array.length()) {
+                val obj = array.optJSONObject(i) ?: continue
+                if (obj.optBoolean("draft", false)) continue
+                val parsed = parseReleaseJson(obj)
+                if (parsed != null) return@withContext parsed
+            }
+            null
         } catch (_: Exception) {
             null
         } finally {
@@ -85,18 +62,79 @@ object AppUpdater {
         }
     }
 
-    fun isNewerVersion(remoteVersionOrTag: String, currentVersion: String): Boolean {
-        val remoteParts = remoteVersionOrTag.removePrefix("v").removePrefix("V")
-            .split(".", "-", "+")
-            .mapNotNull { it.toIntOrNull() }
-        val localParts = currentVersion.removePrefix("v").removePrefix("V")
-            .split(".", "-", "+")
-            .mapNotNull { it.toIntOrNull() }
+    private fun parseReleaseJson(json: JSONObject): AppUpdateRelease? {
+        val tagName = json.optString("tag_name").trim()
+        if (tagName.isBlank()) return null
+        val version = tagName.removePrefix("v").removePrefix("V")
+        val changelog = json.optString("body").trim()
+            .ifBlank { "Bug fixes and performance improvements." }
+        val releaseUrl = json.optString("html_url")
+            .ifBlank { "https://github.com/Sayan201/NexText/releases" }
+        val isPreRelease = json.optBoolean("prerelease", false)
 
-        val maxLen = maxOf(remoteParts.size, localParts.size)
-        for (i in 0 until maxLen) {
-            val r = remoteParts.getOrElse(i) { 0 }
-            val l = localParts.getOrElse(i) { 0 }
+        var apkUrl = ""
+        val assets = json.optJSONArray("assets")
+        if (assets != null) {
+            for (i in 0 until assets.length()) {
+                val asset = assets.optJSONObject(i) ?: continue
+                val name = asset.optString("name")
+                val url = asset.optString("browser_download_url")
+                if (name.equals("app-github-release.apk", ignoreCase = true) ||
+                    name.equals("app-release.apk", ignoreCase = true)
+                ) {
+                    apkUrl = url
+                    break
+                }
+                if (apkUrl.isBlank() && name.endsWith(".apk", ignoreCase = true) &&
+                    !name.contains("debug", ignoreCase = true) &&
+                    !name.contains("unsigned", ignoreCase = true)
+                ) {
+                    apkUrl = url
+                }
+            }
+        }
+        if (apkUrl.isBlank()) return null
+
+        return AppUpdateRelease(
+            version = version,
+            tagName = tagName,
+            changelog = changelog,
+            downloadUrl = apkUrl,
+            releaseUrl = releaseUrl,
+            isPreRelease = isPreRelease
+        )
+    }
+
+    fun isNewerVersion(remoteVersionOrTag: String, currentVersion: String): Boolean {
+        val remoteClean = remoteVersionOrTag.removePrefix("v").removePrefix("V").trim()
+        val localClean = currentVersion.removePrefix("v").removePrefix("V").trim()
+
+        val remoteCore = remoteClean.substringBefore("-").substringBefore("+")
+            .split(".").mapNotNull { it.toIntOrNull() }
+        val localCore = localClean.substringBefore("-").substringBefore("+")
+            .split(".").mapNotNull { it.toIntOrNull() }
+
+        val maxCore = maxOf(remoteCore.size, localCore.size)
+        for (i in 0 until maxCore) {
+            val r = remoteCore.getOrElse(i) { 0 }
+            val l = localCore.getOrElse(i) { 0 }
+            if (r > l) return true
+            if (r < l) return false
+        }
+
+        // Core versions are equal (e.g. 1.6.9 vs 1.6.9-dev.1)
+        val remotePre = remoteClean.substringAfter("-", "")
+        val localPre = localClean.substringAfter("-", "")
+        if (remotePre.isEmpty() && localPre.isNotEmpty()) return true // Stable > Pre-release
+        if (remotePre.isNotEmpty() && localPre.isEmpty()) return false // Pre-release < Stable
+        if (remotePre.isEmpty() && localPre.isEmpty()) return false
+
+        val remotePreNums = remotePre.split(".", "-", "+").mapNotNull { it.toIntOrNull() }
+        val localPreNums = localPre.split(".", "-", "+").mapNotNull { it.toIntOrNull() }
+        val maxPre = maxOf(remotePreNums.size, localPreNums.size)
+        for (i in 0 until maxPre) {
+            val r = remotePreNums.getOrElse(i) { 0 }
+            val l = localPreNums.getOrElse(i) { 0 }
             if (r > l) return true
             if (r < l) return false
         }

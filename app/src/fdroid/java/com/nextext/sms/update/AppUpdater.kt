@@ -8,7 +8,8 @@ data class AppUpdateRelease(
     val tagName: String,
     val changelog: String,
     val downloadUrl: String,
-    val releaseUrl: String
+    val releaseUrl: String,
+    val isPreRelease: Boolean = false
 )
 
 /**
@@ -18,7 +19,7 @@ data class AppUpdateRelease(
 object AppUpdater {
     const val isSupported: Boolean = false
 
-    suspend fun fetchLatestRelease(): AppUpdateRelease? = null
+    suspend fun fetchLatestRelease(includeDev: Boolean = false): AppUpdateRelease? = null
 
     fun isNewerVersion(remoteVersionOrTag: String, currentVersion: String): Boolean = false
 

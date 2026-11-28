@@ -545,7 +545,8 @@ private fun NexTextApp(
                     onUnlinkDriveFolder = { viewModel.unlinkDriveFolder(context) },
                     onUnblockSender = viewModel::unblockSender,
                     isCheckingUpdates = updateState.isChecking,
-                    onCheckForUpdates = { viewModel.checkForUpdates(userInitiated = true) }
+                    onCheckForUpdates = { viewModel.checkForUpdates(userInitiated = true) },
+                    onSetReceiveDevUpdates = viewModel::setReceiveDevUpdates
                 )
             }
 

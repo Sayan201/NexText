@@ -94,12 +94,33 @@ fun UpdateFlyoutDialog(
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Update Available",
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Update Available",
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (update.isPreRelease) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color(0xFFF59E0B).copy(alpha = 0.20f))
+                                        .border(0.6.dp, Color(0xFFF59E0B), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "DEV",
+                                        color = Color(0xFFF59E0B),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
                         Text(
                             text = "v${update.version} • Current v${BuildConfig.VERSION_NAME}",
                             color = accent,
