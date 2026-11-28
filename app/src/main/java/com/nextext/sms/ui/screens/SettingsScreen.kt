@@ -1030,9 +1030,9 @@ private fun GlassNavStyleDialog(
                         onClick = {
                             heightPercent = 100
                             maxWidthPercent = 100
-                            buttonSpacingDp = 4
-                            frostPercent = 35
-                            rimBrightnessPercent = 3
+                            buttonSpacingDp = 5
+                            frostPercent = 50
+                            rimBrightnessPercent = 5
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),

@@ -74,9 +74,9 @@ data class UserPreferences(
     val lastSyncTimestamp: Long = 0L,
     val glassBarHeightPercent: Int = 100,
     val glassBarMaxWidthPercent: Int = 100,
-    val glassBarButtonSpacingDp: Int = 4,
-    val glassBarFrostPercent: Int = 35,
-    val glassBarRimBrightnessPercent: Int = 3,
+    val glassBarButtonSpacingDp: Int = 5,
+    val glassBarFrostPercent: Int = 50,
+    val glassBarRimBrightnessPercent: Int = 5,
     val dismissedUpdateVersion: String? = null,
     val receiveDevUpdates: Boolean = false
 )
@@ -146,9 +146,9 @@ class UserPreferencesRepository(private val context: Context) {
             lastSyncTimestamp = prefs[Keys.LAST_SYNC] ?: 0L,
             glassBarHeightPercent = (prefs[Keys.GLASS_HEIGHT_PCT] ?: 100).coerceIn(80, 135),
             glassBarMaxWidthPercent = (prefs[Keys.GLASS_MAX_WIDTH_PCT] ?: 100).coerceIn(65, 100),
-            glassBarButtonSpacingDp = (prefs[Keys.GLASS_BTN_SPACING_DP] ?: 4).coerceIn(0, 24),
-            glassBarFrostPercent = (prefs[Keys.GLASS_FROST_PCT] ?: 35).coerceIn(0, 100),
-            glassBarRimBrightnessPercent = (prefs[Keys.GLASS_RIM_BRIGHTNESS_PCT] ?: 3).coerceIn(0, 100),
+            glassBarButtonSpacingDp = (prefs[Keys.GLASS_BTN_SPACING_DP] ?: 5).coerceIn(0, 24),
+            glassBarFrostPercent = (prefs[Keys.GLASS_FROST_PCT] ?: 50).coerceIn(0, 100),
+            glassBarRimBrightnessPercent = (prefs[Keys.GLASS_RIM_BRIGHTNESS_PCT] ?: 5).coerceIn(0, 100),
             dismissedUpdateVersion = prefs[Keys.DISMISSED_UPDATE_VERSION],
             receiveDevUpdates = prefs[Keys.RECEIVE_DEV_UPDATES] ?: false
         )

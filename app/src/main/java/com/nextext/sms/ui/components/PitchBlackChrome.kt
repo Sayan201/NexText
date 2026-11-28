@@ -236,30 +236,28 @@ fun TopAmbientGlow(
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(220.dp)
+            .height(300.dp)
     ) {
         val width = size.width
         val height = size.height
         drawRect(
             brush = Brush.verticalGradient(
-                colors = listOf(
-                    accentColor.copy(alpha = topAlpha),
-                    accentColor.copy(alpha = midAlpha),
-                    Color.Transparent
-                ),
+                0.0f to accentColor.copy(alpha = topAlpha),
+                0.38f to accentColor.copy(alpha = midAlpha),
+                0.75f to accentColor.copy(alpha = midAlpha * 0.25f),
+                1.0f to Color.Transparent,
                 startY = 0f,
                 endY = height
             )
         )
         drawRect(
             brush = Brush.radialGradient(
-                colors = listOf(
-                    accentColor.copy(alpha = coreAlpha),
-                    accentColor.copy(alpha = haloAlpha),
-                    Color.Transparent
-                ),
+                0.0f to accentColor.copy(alpha = coreAlpha),
+                0.45f to accentColor.copy(alpha = haloAlpha),
+                0.78f to accentColor.copy(alpha = haloAlpha * 0.22f),
+                1.0f to Color.Transparent,
                 center = Offset(width * 0.5f, 0f),
-                radius = width * 0.85f
+                radius = minOf(width * 0.72f, height * 0.92f)
             )
         )
     }
@@ -511,9 +509,9 @@ fun LiquidGlassNavBottomBar(
     modifier: Modifier = Modifier,
     heightPercent: Int = 100,
     maxWidthPercent: Int = 100,
-    buttonSpacingDp: Int = 4,
-    frostPercent: Int = 35,
-    rimBrightnessPercent: Int = 3,
+    buttonSpacingDp: Int = 5,
+    frostPercent: Int = 50,
+    rimBrightnessPercent: Int = 5,
     showComposeButton: Boolean = true
 ) {
     val heightScale = (heightPercent.coerceIn(80, 135) / 100f)
@@ -521,7 +519,6 @@ fun LiquidGlassNavBottomBar(
     val spacingDp = buttonSpacingDp.coerceIn(0, 24).dp
     val frost = (frostPercent.coerceIn(0, 100) / 100f)
     val rimBrightness = (rimBrightnessPercent.coerceIn(0, 100) / 100f)
-
 
     val capsuleHeight = (60f * heightScale).dp
     val pillHeight = (52f * heightScale).dp
@@ -552,7 +549,7 @@ fun LiquidGlassNavBottomBar(
         if (isPressed) {
             recentPressLatch = true
         } else if (recentPressLatch) {
-            kotlinx.coroutines.delay(95)
+            kotlinx.coroutines.delay(120)
             recentPressLatch = false
         }
     }
@@ -560,7 +557,7 @@ fun LiquidGlassNavBottomBar(
     val animatedIndex by animateFloatAsState(
         targetValue = if (isDragging) dragIndex else selectedTab.toFloat(),
         animationSpec = spring(
-            dampingRatio = 0.72f,
+            dampingRatio = 0.78f,
             stiffness = Spring.StiffnessMediumLow
         ),
         label = "liquidGlassSlide"
@@ -603,20 +600,18 @@ fun LiquidGlassNavBottomBar(
     val expandProgress by animateFloatAsState(
         targetValue = if (isSwitching) 1f else 0f,
         animationSpec = spring(
-            dampingRatio = 0.72f,
+            dampingRatio = 0.78f,
             stiffness = Spring.StiffnessMediumLow
         ),
         label = "liquidGlassExpand"
     )
 
-    // Droplet pop. Damping < 1 on purpose: the lens inflates past its target and
-    // settles back, so the bubble visibly escapes the capsule instead of easing
-    // flat inside it. This is the "pops out of the bar" read from the reference.
+    // Smooth single-pop spring (dampingRatio = 0.78f eliminates double-bounce overshoot).
     val popProgress by animateFloatAsState(
         targetValue = if (isSwitching) 1f else 0f,
         animationSpec = spring(
-            dampingRatio = 0.42f,
-            stiffness = Spring.StiffnessMedium
+            dampingRatio = 0.78f,
+            stiffness = Spring.StiffnessMediumLow
         ),
         label = "dropletPop"
     )
@@ -717,7 +712,7 @@ fun LiquidGlassNavBottomBar(
                     val dropletWidth = slotWidth * (1.04f + lensWidthDelta.coerceAtMost(0.14f) + 0.06f * pop)
                     val dropletHeight = capsuleHeight * (0.94f + 0.30f * pop) *
                         (1f + lensHeightDelta * 0.30f).coerceAtLeast(0.95f)
-                    val dropletCornerRadiusDp = (dropletHeight.value * 0.30f).coerceIn(18f, 24f)
+                    val dropletCornerRadiusDp = (dropletHeight.value * 0.38f).coerceIn(22f, 28f)
                     val dropletCorner = RoundedCornerShape(dropletCornerRadiusDp.dp)
 
                     // Resting indicator: the solid accent chip Zangetsu leaves
