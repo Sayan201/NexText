@@ -131,14 +131,14 @@ half4 main(float2 fragCoord) {
     float distIn = -d;
     float frost = clamp(uFrost, 0.0, 1.0);
     float expandP = clamp(uExpand, 0.0, 1.0);
-    float flat = clamp(uFlat, 0.0, 1.0);
-    float thickness = mix(28.0 + 8.0 * expandP, 16.0 + 4.0 * expandP, flat);
+    float flatness = clamp(uFlat, 0.0, 1.0);
+    float thickness = mix(28.0 + 8.0 * expandP, 16.0 + 4.0 * expandP, flatness);
     float edgeRatio = clamp(distIn / thickness, 0.0, 1.0);
 
     // Snell's Law bending, concentrated in the curved rim. Flat glass bends
     // gently: the point is to see the capsule behind it, not to smear it.
     float bendFactor = pow(1.0 - edgeRatio, 2.2);
-    float bendAmount = bendFactor * mix(26.0 + 20.0 * expandP, 9.0 + 6.0 * expandP, flat);
+    float bendAmount = bendFactor * mix(26.0 + 20.0 * expandP, 9.0 + 6.0 * expandP, flatness);
     float2 refractCoord = clamp(fragCoord - n * bendAmount, float2(1.0), uSize - float2(1.0));
     float2 lo = float2(1.0);
     float2 hi = uSize - float2(1.0);
@@ -171,22 +171,22 @@ half4 main(float2 fragCoord) {
 
     // Saturation: 1.15 gives the crystal bead its colour pop; flat glass is neutral.
     float luma = dot(rgb, float3(0.299, 0.587, 0.114));
-    rgb = mix(float3(luma), rgb, mix(1.15, 1.0, flat));
+    rgb = mix(float3(luma), rgb, mix(1.15, 1.0, flatness));
 
     // Milky frost film (Zangetsu glassColor white @ 0.12). Flat glass keeps
     // almost none of it — that film was what hid the capsule underneath.
-    float film = 0.40 * frost * (1.0 - 0.85 * flat);
+    float film = 0.40 * frost * (1.0 - 0.85 * flatness);
     rgb = mix(rgb, mix(rgb, float3(1.0), 0.45) + float3(0.025), film);
 
     // Faint pane lift so flat glass still reads as a surface, not a hole.
-    rgb = mix(rgb, float3(1.0), 0.05 * flat);
+    rgb = mix(rgb, float3(1.0), 0.05 * flatness);
     // The flat indicator carries the accent as a light tint, the same way the
     // resting chip does — a pane of tinted glass, not a clear hole in the slab.
-    rgb = mix(rgb, uAccent.rgb, 0.14 * flat);
+    rgb = mix(rgb, uAccent.rgb, 0.14 * flatness);
 
     // bodyShade 0.12, bottom-weighted so labels keep contrast on bright backdrops.
     // Flat glass has no body shading at all.
-    float bodyShade = smoothstep(-0.1, 1.0, p.y / max(halfSize.y, 1.0)) * 0.12 * (1.0 - flat);
+    float bodyShade = smoothstep(-0.1, 1.0, p.y / max(halfSize.y, 1.0)) * 0.12 * (1.0 - flatness);
     rgb *= (1.0 - bodyShade);
 
     // The capsule is composited into `contents` before this shader runs, so the
@@ -196,7 +196,7 @@ half4 main(float2 fragCoord) {
     float rimMult = mix(uRim * 2.22, max(uRim * 2.22, 1.0), uExpand);
     float outerHairline = smoothstep(2.6, 0.0, distIn);
     float groove = smoothstep(1.5, 4.0, distIn) * (1.0 - smoothstep(4.0, 7.5, distIn));
-    rgb *= (1.0 - 0.55 * groove * clamp(rimMult, 0.0, 1.3) * (1.0 - flat));
+    rgb *= (1.0 - 0.55 * groove * clamp(rimMult, 0.0, 1.3) * (1.0 - flatness));
     float innerBevelBand = smoothstep(3.5, 8.5, distIn) * (1.0 - smoothstep(8.5, 20.0, distIn));
 
     // Directional light from top-left and secondary bottom reflection
@@ -207,7 +207,7 @@ half4 main(float2 fragCoord) {
     float fresnelGlow = pow(1.0 - edgeRatio, 2.8) * (0.32 + 0.30 * uExpand);
     float hairline = outerHairline * (0.45 + 0.35 * uExpand + 0.25 * dirLight);
     float bead = innerBevelBand * dirLight * (0.28 + 0.62 * uExpand) + fresnelGlow * 0.22;
-    float spec = (hairline + bead * (1.0 - 0.85 * flat)) * rimMult;
+    float spec = (hairline + bead * (1.0 - 0.85 * flatness)) * rimMult;
 
     rgb += uInk.rgb * spec;
 
@@ -344,7 +344,11 @@ private fun RealRefractionGlassLayer(
     flat: Float = 0f,
     modifier: Modifier = Modifier
 ) {
-    val shader = remember { RuntimeShader(LIQUID_GLASS_REFRACTION_AGSL) }
+    // A bad AGSL build must degrade to plain glass, never take the app down.
+    // `RuntimeShader` compiles in its constructor and throws on error.
+    val shader = remember {
+        runCatching { RuntimeShader(LIQUID_GLASS_REFRACTION_AGSL) }.getOrNull()
+    }
     val density = LocalDensity.current
     val ink = MaterialTheme.colorScheme.onSurface
     var elementPosInRoot by remember { mutableStateOf(Offset.Zero) }
@@ -361,24 +365,25 @@ private fun RealRefractionGlassLayer(
             }
             .clip(shape)
             .graphicsLayer {
-                if (elementSize.width > 1f && elementSize.height > 1f) {
+                val sh = shader
+                if (sh != null && elementSize.width > 1f && elementSize.height > 1f) {
                     val radiusPx = with(density) { cornerRadiusDp.dp.toPx() }
-                    shader.setFloatUniform("uSize", elementSize.width, elementSize.height)
-                    shader.setFloatUniform("uRadius", radiusPx)
-                    shader.setFloatUniform(
+                    sh.setFloatUniform("uSize", elementSize.width, elementSize.height)
+                    sh.setFloatUniform("uRadius", radiusPx)
+                    sh.setFloatUniform(
                         "uAccent",
                         accentColor.red,
                         accentColor.green,
                         accentColor.blue,
                         accentColor.alpha
                     )
-                    shader.setFloatUniform("uExpand", expandProgress)
-                    shader.setFloatUniform("uFrost", frost.coerceIn(0f, 1f))
-                    shader.setFloatUniform("uRim", rimBrightness.coerceIn(0f, 1f))
-                    shader.setFloatUniform("uFlat", flat.coerceIn(0f, 1f))
-                    shader.setFloatUniform("uInk", ink.red, ink.green, ink.blue, ink.alpha)
+                    sh.setFloatUniform("uExpand", expandProgress)
+                    sh.setFloatUniform("uFrost", frost.coerceIn(0f, 1f))
+                    sh.setFloatUniform("uRim", rimBrightness.coerceIn(0f, 1f))
+                    sh.setFloatUniform("uFlat", flat.coerceIn(0f, 1f))
+                    sh.setFloatUniform("uInk", ink.red, ink.green, ink.blue, ink.alpha)
                     renderEffect = RenderEffect
-                        .createRuntimeShaderEffect(shader, "contents")
+                        .createRuntimeShaderEffect(sh, "contents")
                         .asComposeRenderEffect()
                 }
             }

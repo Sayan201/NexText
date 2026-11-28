@@ -2,6 +2,12 @@
 
 All notable changes to NexText are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is [SemVer](https://semver.org/).
 
+## [1.6.8] — 2026-11-28
+
+### Fixed
+- **Startup crash introduced in 1.6.7.** The liquid-glass shader used `flat` as a local variable name, but `flat` is a reserved AGSL/SkSL keyword (the interpolation qualifier). `RuntimeShader` threw while compiling and the navigation bar took the process down on the first frame. Renamed to `flatness`.
+- Shader compilation is now guarded. If an AGSL build ever fails on a device, the bar falls back to plain glass instead of crashing the app.
+
 ## [1.6.7] — 2026-11-28
 
 ### Fixed

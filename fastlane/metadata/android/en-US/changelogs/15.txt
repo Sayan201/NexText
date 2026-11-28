@@ -1,0 +1,2 @@
+- Fixed a startup crash introduced in 1.6.7 (the glass shader used a reserved keyword as a variable name).
+- Shader compilation now falls back to plain glass instead of crashing.
