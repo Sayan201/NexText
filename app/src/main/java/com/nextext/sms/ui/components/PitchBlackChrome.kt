@@ -716,7 +716,7 @@ fun LiquidGlassNavBottomBar(
                     // No vertical bulge — the reference indicator is a pane, not a bead.
                     val pop = popProgress.coerceIn(0f, 1.5f)
                     val dropletWidth = slotWidth * (0.96f + lensWidthDelta.coerceAtMost(0.12f) + 0.04f * pop)
-                    val dropletHeight = capsuleHeight * (0.90f + 0.24f * pop) *
+                    val dropletHeight = capsuleHeight * (0.94f + 0.30f * pop) *
                         (1f + lensHeightDelta * 0.25f).coerceAtLeast(0.95f)
                     val dropletCornerRadiusDp = (dropletHeight.value * 0.38f).coerceIn(22f, 28f)
                     val dropletCorner = RoundedCornerShape(dropletCornerRadiusDp.dp)
@@ -766,7 +766,7 @@ fun LiquidGlassNavBottomBar(
                                 cornerRadiusDp = dropletCornerRadiusDp,
                                 accentColor = accentColor,
                                 expandProgress = expandP,
-                                rimBrightness = rimBrightness,
+                                rimBrightness = 0.01f,
                                 underlayLayer = capsuleGlassLayer,
                                 underlayPosInRoot = capsuleOriginInRoot,
                                 underlayScaleY = 1f - 0.22f * expandP,
